@@ -290,7 +290,7 @@ class ScoringEngine:
         avg_cost_leaders = statistics.mean([a.avg_landed_cost for a in cost_leaders])
         
         if avg_cost_leaders < avg_cost * 0.9:
-            insights.append(f"**Cost Efficiency**: Top performers average 10%+ lower costs (${avg_cost_leaders:.2f} vs ${avg_cost:.2f})")
+            insights.append(f"**Cost Efficiency**: Top performers average 10%+ lower costs (\${avg_cost_leaders:.2f} vs \${avg_cost:.2f})")
         
         # Capacity insights
         total_capacity = sum(analysis.total_monthly_capacity for analysis in analyses)

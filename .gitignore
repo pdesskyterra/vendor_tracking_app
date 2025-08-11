@@ -51,3 +51,6 @@ htmlcov/
 # Temporary files
 *.tmp
 *.temp
+
+# Streamlit local secrets (do not commit)
+.streamlit/secrets.toml

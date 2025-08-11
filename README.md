@@ -290,3 +290,47 @@ pip install -r requirements.txt
 ---
 
 **Production-ready vendor logistics database for modern supply chain management.**
+
+## Streamlit App (alternative to Flask/App Runner)
+
+A Streamlit UI is provided in `streamlit_app.py` that reuses the existing Notion and scoring logic.
+
+### Run locally
+
+1. Install deps:
+   
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. Export environment variables (or create a `.streamlit/secrets.toml` as below):
+   
+   ```bash
+   set NOTION_API_KEY=...      # Windows PowerShell: $env:NOTION_API_KEY="..."
+   set VENDORS_DB_ID=...
+   set PARTS_DB_ID=...
+   set SCORES_DB_ID=...
+   ```
+
+3. Start Streamlit:
+   
+   ```bash
+   streamlit run streamlit_app.py
+   ```
+
+### Streamlit Cloud deployment
+
+1. Push this repo to GitHub.
+2. In Streamlit Cloud, create a new app pointing to your repo.
+3. Set the app entrypoint to `streamlit_app.py`.
+4. Configure Secrets (Settings → Secrets) as TOML:
+   
+   ```toml
+   NOTION_API_KEY = "..."
+   VENDORS_DB_ID = "..."
+   PARTS_DB_ID = "..."
+   SCORES_DB_ID = "..."
+   SECRET_KEY = "change-me"
+   ```
+
+No additional build steps are required; `requirements.txt` includes Streamlit and Altair.

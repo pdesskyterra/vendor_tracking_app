@@ -15,10 +15,10 @@ load_dotenv()
 # Configure structured logging
 structlog.configure(
     processors=[
-        structlog.dev.ConsoleRenderer() if os.getenv('FLASK_ENV') == 'development' else structlog.processors.JSONRenderer(),
-        structlog.processors.TimeStamper(fmt="iso", key="timestamp"),
         structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso", key="timestamp"),
         structlog.processors.StackInfoRenderer(),
+        structlog.dev.ConsoleRenderer() if os.getenv('FLASK_ENV') == 'development' else structlog.processors.JSONRenderer(),
     ],
     wrapper_class=structlog.make_filtering_bound_logger(30),  # INFO level
     logger_factory=structlog.PrintLoggerFactory(),
