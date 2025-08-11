@@ -13,7 +13,7 @@ build:
       - echo "Post-build phase - container ready for deployment"
 
 run:
-  runtime-version: latest
+  runtime-version: docker
   environment:
     # Application configuration
     - name: FLASK_ENV
