@@ -1,19 +1,16 @@
-# AWS App Runner Configuration
-# This file defines the runtime configuration for deploying to AWS App Runner
-
 version: 1.0
-runtime: docker
+runtime: python311
 build:
   commands:
     build:
-      - echo "Building Synseer Vendor Database container..."
-    pre-build:
-      - echo "Pre-build phase - no additional steps required"
-    post-build:
-      - echo "Post-build phase - container ready for deployment"
-
+      - pip3 install --upgrade pip
 run:
-  runtime-version: docker
+  runtime-version: 3.11
+  pre-run:
+    - pip3 install -r requirements.txt
+  command: gunicorn app:app --log-file -
+  network:
+    port: 8080
   environment:
     # Application configuration
     - name: FLASK_ENV
@@ -48,11 +45,3 @@ run:
     # Application secret key
     - name: SECRET_KEY
       value-from: "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:synseer/flask-secret-key"
-
-  # Network configuration
-  network:
-    port: 8080
-    env: PORT
-    
-  # Health check configuration
-  start-command: ""  # Use Dockerfile CMD

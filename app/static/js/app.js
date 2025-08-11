@@ -547,7 +547,11 @@ class VendorApp {
             }
 
             // Recompute scores
-            await fetch('/api/recompute', { method: 'POST' });
+            await fetch('/api/recompute', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
             
             this.showSuccess('Weights updated and scores recomputed');
             await this.loadVendors();
@@ -578,7 +582,11 @@ class VendorApp {
             }
 
             // Recompute scores
-            await fetch('/api/recompute', { method: 'POST' });
+            await fetch('/api/recompute', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
             
             // Update timestamp
             const now = new Date();
