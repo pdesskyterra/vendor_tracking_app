@@ -8,7 +8,9 @@
       "Bash(\"venv\\Scripts\\gunicorn.exe\" --check-config app:app)",
       "Bash(\"venv\\Scripts\\python.exe\" -m gunicorn --check-config app:app)",
       "Bash(\"venv\\Scripts\\pip.exe\":*)",
-      "Bash(SET PYTHONPATH=.)"
+      "Bash(SET PYTHONPATH=.)",
+      "Bash(git push:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
