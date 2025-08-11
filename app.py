@@ -18,9 +18,9 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))
     debug = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
     
-    print(f"🚀 Synseer Vendor Database")
-    print(f"🌐 Running on port {port}")
-    print(f"📊 Connects to Notion databases for live data")
+    print(f"Synseer Vendor Database")
+    print(f"Running on port {port}")
+    print(f"Connects to Notion databases for live data")
     
     app.run(
         host='0.0.0.0',

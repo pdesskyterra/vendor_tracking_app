@@ -8,10 +8,17 @@ run:
   runtime-version: 3.11
   pre-run:
     - pip3 install -r requirements.txt
-  command: gunicorn app:app --log-file -
+  command: gunicorn app:app --log-file - --worker-class gevent
   network:
     port: 8080
-  environment:
+    health-check:
+      healthy-threshold: 1
+      unhealthy-threshold: 5
+      interval: 10
+      timeout: 5
+      path: /api/healthz
+      protocol: HTTP
+  env:
     # Application configuration
     - name: FLASK_ENV
       value: "production"
@@ -30,18 +37,18 @@ run:
   secrets:
     # Notion API credentials
     - name: NOTION_API_KEY
-      value-from: "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:synseer/notion-api-key"
+      value-from: "arn:aws:secretsmanager:us-east-2:274921264674:secret:synseer/notion-api-key"
     
     # Notion database IDs
     - name: VENDORS_DB_ID
-      value-from: "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:synseer/vendors-db-id"
+      value-from: "arn:aws:secretsmanager:us-east-2:274921264674:secret:synseer/vendors-db-id"
     
     - name: PARTS_DB_ID
-      value-from: "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:synseer/parts-db-id"
+      value-from: "arn:aws:secretsmanager:us-east-2:274921264674:secret:synseer/parts-db-id"
     
     - name: SCORES_DB_ID
-      value-from: "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:synseer/scores-db-id"
+      value-from: "arn:aws:secretsmanager:us-east-2:274921264674:secret:synseer/scores-db-id"
     
     # Application secret key
     - name: SECRET_KEY
-      value-from: "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:synseer/flask-secret-key"
+      value-from: "arn:aws:secretsmanager:us-east-2:274921264674:secret:synseer/flask-secret-key"
