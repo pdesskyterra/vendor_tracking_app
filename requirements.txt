@@ -1,0 +1,16 @@
+# Production dependencies for Synseer Vendor Database
+Flask==3.0.0
+gunicorn==21.2.0
+gevent==23.9.1
+requests==2.31.0
+python-dotenv==1.0.0
+structlog==23.2.0
+colorama==0.4.6
+python-dateutil==2.8.2
+typing-extensions==4.8.0
+dataclasses-json==0.6.1
+urllib3>=1.26.0
+
+# Testing dependencies
+pytest==7.4.3
+pytest-mock==3.12.0

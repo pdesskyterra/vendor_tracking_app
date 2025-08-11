@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(del validate-docker.py)",
+      "Bash(rm:*)"
+    ],
+    "deny": []
+  }
+}

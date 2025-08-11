@@ -1,0 +1,58 @@
+# AWS App Runner Configuration
+# This file defines the runtime configuration for deploying to AWS App Runner
+
+version: 1.0
+runtime: docker
+build:
+  commands:
+    build:
+      - echo "Building Synseer Vendor Database container..."
+    pre-build:
+      - echo "Pre-build phase - no additional steps required"
+    post-build:
+      - echo "Post-build phase - container ready for deployment"
+
+run:
+  runtime-version: latest
+  environment:
+    # Application configuration
+    - name: FLASK_ENV
+      value: "production"
+    - name: FLASK_DEBUG
+      value: "false"
+    
+    # CORS configuration for production
+    - name: ALLOWED_ORIGINS
+      value: "https://your-domain.com"
+    
+    # Default scoring weights (can be overridden via UI)
+    - name: DEFAULT_WEIGHTS
+      value: '{"total_cost": 0.4, "total_time": 0.3, "reliability": 0.2, "capacity": 0.1}'
+  
+  # Secrets from AWS Secrets Manager or Systems Manager Parameter Store
+  secrets:
+    # Notion API credentials
+    - name: NOTION_API_KEY
+      value-from: "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:synseer/notion-api-key"
+    
+    # Notion database IDs
+    - name: VENDORS_DB_ID
+      value-from: "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:synseer/vendors-db-id"
+    
+    - name: PARTS_DB_ID
+      value-from: "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:synseer/parts-db-id"
+    
+    - name: SCORES_DB_ID
+      value-from: "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:synseer/scores-db-id"
+    
+    # Application secret key
+    - name: SECRET_KEY
+      value-from: "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:synseer/flask-secret-key"
+
+  # Network configuration
+  network:
+    port: 8080
+    env: PORT
+    
+  # Health check configuration
+  start-command: ""  # Use Dockerfile CMD
