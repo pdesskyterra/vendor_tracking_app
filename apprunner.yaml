@@ -11,13 +11,6 @@ run:
   command: gunicorn app:app --log-file - --worker-class gevent
   network:
     port: 8080
-    health-check:
-      healthy-threshold: 1
-      unhealthy-threshold: 5
-      interval: 10
-      timeout: 5
-      path: /api/healthz
-      protocol: HTTP
   env:
     # Application configuration
     - name: FLASK_ENV
