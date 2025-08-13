@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Standalone Notion Database Population Script for Synseer Vendor Database
+Standalone Notion Database Population Script for the Vendor Database
 Populates Notion databases with realistic demo data for testing and development.
 
 Usage:
@@ -1217,8 +1217,8 @@ class NotionPopulator:
         print(f"   [ERRORS] {len(errors)}")
         
         if success:
-            print(f"\n[SUCCESS] Your Notion databases now contain realistic demo data.")
-            print(f"[READY] Ready to run your Synseer Vendor Database application!")
+            print(f"\n[SUCCESS] Your Vendor Database now contains realistic demo data.")
+            print(f"[READY] Ready to run your Vendor Database application!")
         
         return {
             "success": success,
@@ -1264,7 +1264,7 @@ def main():
     
     args = parser.parse_args()
     
-    print("Synseer Vendor Database - Notion Population Tool")
+    print("Vendor Database - Notion Population Tool")
     print("=" * 55)
     
     # Load environment

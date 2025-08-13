@@ -1,5 +1,5 @@
 /**
- * Synseer Vendor Logistics Database - Frontend Application
+ * Vendor Logistics Database - Frontend Application
  * Handles UI interactions, API calls, and data visualization
  */
 

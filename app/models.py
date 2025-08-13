@@ -1,6 +1,6 @@
 """
-Data models for the Synseer Vendor Logistics Database.
-Based on the Component → ODM Logistics schema from the Vendor Selection Ideas document.
+Data models for the Vendor Logistics Database.
+Based on the Component → ODM Logistics schema.
 """
 
 from dataclasses import dataclass, field

@@ -1,6 +1,5 @@
 """
-Main web routes for the Synseer Vendor Logistics Database.
-Serves the SPA and handles browser navigation.
+Main web routes for the Vendor Logistics Database.
 """
 
 from flask import Blueprint, render_template, send_from_directory, current_app

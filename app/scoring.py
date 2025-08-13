@@ -1,6 +1,5 @@
 """
-Scoring engine for vendor evaluation based on the Synseer methodology.
-Implements the normalized scoring formula: Final = Σ w_p * S_p,v
+Scoring engine for vendor evaluation.
 """
 
 from typing import List, Dict, Optional, Tuple, Any
@@ -13,7 +12,7 @@ from .utils import normalize_min_max, winsorize, calculate_month_over_month_chan
 logger = structlog.get_logger()
 
 class ScoringEngine:
-    """Core scoring engine implementing Synseer's vendor evaluation methodology."""
+    """Core scoring engine implementing the vendor evaluation methodology."""
     
     def __init__(self, weights: Optional[ScoringWeights] = None):
         """Initialize scoring engine with default or custom weights."""

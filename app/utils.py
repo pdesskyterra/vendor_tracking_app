@@ -1,5 +1,5 @@
 """
-Utility functions for the Synseer Vendor Logistics Database.
+Utility functions for the Vendor Logistics Database.
 """
 
 import time

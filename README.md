@@ -1,4 +1,4 @@
-# Synseer Vendor Database
+# Vendor Database
 
 A production-ready Flask application for tracking, scoring, and visualizing component vendors. Built with Notion as the datastore and designed for AWS App Runner deployment.
 

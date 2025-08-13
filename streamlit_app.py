@@ -60,7 +60,7 @@ def _bootstrap_env_from_streamlit_secrets():
 
 _bootstrap_env_from_streamlit_secrets()
 
-st.set_page_config(page_title="Synseer Vendor Database", layout="wide")
+st.set_page_config(page_title="Vendor Database", layout="wide")
 
 # Top navigation as a horizontal radio (clickable titles)
 current_page = st.radio(
@@ -156,7 +156,7 @@ def render_risk_badges(analysis: VendorAnalysis) -> str:
 
 # Sidebar - global filters and weights
 with st.sidebar:
-    st.title("Synseer Vendor DB")
+    st.title("Vendor Database")
     st.caption("Component Vendor Scoring & Analytics")
 
     st.subheader("Filters")

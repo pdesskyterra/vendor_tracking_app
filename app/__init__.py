@@ -1,5 +1,5 @@
 """
-Synseer Vendor Logistics Database
+Vendor Logistics Database
 A Flask application for tracking, scoring, and visualizing component vendors.
 """
 

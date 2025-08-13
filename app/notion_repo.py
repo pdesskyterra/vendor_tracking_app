@@ -1,5 +1,5 @@
 """
-Notion API integration layer for Synseer Vendor Logistics Database.
+Notion API integration layer for the Vendor Logistics Database.
 Handles CRUD operations with rate limiting, retries, and error handling.
 """
 

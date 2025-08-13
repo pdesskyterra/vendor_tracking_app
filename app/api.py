@@ -1,6 +1,5 @@
 """
-REST API endpoints for the Synseer Vendor Logistics Database.
-Provides JSON API for vendor scoring, filtering, and analysis.
+REST API endpoints for the Vendor Logistics Database.
 """
 
 from flask import Blueprint, request, jsonify, current_app

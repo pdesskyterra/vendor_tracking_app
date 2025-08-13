@@ -1,4 +1,4 @@
-# Docker ignore file for Synseer Vendor Database
+# Docker ignore file for Vendor Database
 
 # Python
 __pycache__/
