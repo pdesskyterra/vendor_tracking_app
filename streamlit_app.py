@@ -270,6 +270,38 @@ else:
 
 if current_page == "Vendors":
     st.header("Vendors")
+    with st.expander("Page guide: methodology and metrics", expanded=False):
+        st.markdown(
+            """
+            - **What this page shows**: Ranked vendor list, pillar scores, costs/times, capacity, and risk indicators.
+            
+            - **HOW: Final Score**
+              - Weighted sum of pillar scores (0–100%). Weights set in the sidebar and normalized to 100% (when enabled).
+              - `Final = Cost×w_cost + Time×w_time + Vendor Maturity×w_vm + Capacity×w_cap`
+              - Per pillar: winsorize outliers, min–max normalize across vendors. Cost/Time are inverted (lower is better).
+            
+            - **WHY these pillars**
+              - **Cost**: Direct impact on margins and BOM feasibility.
+              - **Time**: Lead/transit times drive cash cycles and schedule risk.
+              - **Vendor Maturity**: Execution reliability and resilience reduce hidden costs and supply shocks.
+              - **Capacity**: Ability to meet demand and scale without constraints.
+            
+            - **HOW: Risk flags**
+              - Stale data (last verification > 30 days), delay risks (Ocean >14d, Air >7d), capacity shortfall (<10k/mo), cost spikes (>10% MoM when history is available).
+            
+            - **WHY: Risk flags**
+              - Surface operational and data-quality risks early for remediation and sourcing decisions.
+            
+            - **Advanced metrics (toggle)**
+              - **Percentile** (HOW): relative rank across vendors, 0–100%. **WHY**: Quick benchmarking.
+              - **Z‑score** (HOW): (value − mean) / std. **WHY**: Highlights outliers vs portfolio average.
+              - **Composite Risk Index** (HOW): weighted count of flags, staleness, capacity shortfall → 0–100. **WHY**: Single glance risk prioritization.
+            
+            - **Tips**
+              - Use Compare Vendors to see pillar trade‑offs side‑by‑side.
+              - Use Scale/Enforce 100% to keep weights precise and comparable.
+            """
+        )
     # Executive summary
     engine_for_summary = ScoringEngine(weights_scoring)
     summary = engine_for_summary.generate_executive_summary(analyses)
@@ -314,6 +346,8 @@ if current_page == "Vendors":
             med = sum(1 for f in a.risk_flags if f.severity == "medium")
             low = sum(1 for f in a.risk_flags if f.severity == "low")
             risks = f"H:{high} M:{med} L:{low}" if (high or med or low) else "None"
+            # Composite risk index (0-100)
+            risk_index = min(100, high*30 + med*15 + low*5 + (30 if a.vendor.is_stale() else 0) + (10 if a.total_monthly_capacity < 10000 else 0))
             df_rows.append(
                 {
                     "Rank": idx,
@@ -328,14 +362,27 @@ if current_page == "Vendors":
                     "Avg. Landed Cost": round(a.avg_landed_cost, 2),
                     "Avg. Total Time (days)": round(a.avg_total_time, 1),
                     "Total Capacity": a.total_monthly_capacity,
+                    "Risk Index": risk_index,
                     "Parts": len(a.parts),
                     "Risks": risks,
                     "Status": "Stale" if a.vendor.is_stale() else "Fresh",
                 }
             )
         df = pd.DataFrame(df_rows)
+        # Add percentile ranks and z-scores for cost/time
+        if not df.empty:
+            for col in ["Avg. Landed Cost", "Avg. Total Time (days)"]:
+                pct_col = f"{col} Pctl"
+                z_col = f"{col} Z"
+                df[pct_col] = (df[col].rank(pct=True) * 100).round(1)
+                if df[col].std(ddof=0) > 0:
+                    df[z_col] = ((df[col] - df[col].mean()) / df[col].std(ddof=0)).round(2)
+                else:
+                    df[z_col] = 0.0
+        show_adv = st.checkbox("Show advanced metrics (percentiles, z-scores, risk index)", value=False)
+        display_df = df if show_adv else df.drop(columns=[c for c in df.columns if c.endswith(" Pctl") or c.endswith(" Z") or c == "Risk Index"], errors="ignore")
         st.dataframe(
-            df,
+            display_df,
             use_container_width=True,
             hide_index=True,
             column_config={
@@ -347,9 +394,40 @@ if current_page == "Vendors":
                 "Avg. Landed Cost": cc.NumberColumn(format="$%.2f"),
                 "Avg. Total Time (days)": cc.NumberColumn(format="%.1f"),
                 "Total Capacity": cc.NumberColumn(format="%d"),
+                "Risk Index": cc.NumberColumn(format="%d"),
             },
             height=420,
         )
+
+    # Vendor Comparison
+    if analyses:
+        with st.expander("Compare vendors (pillar scores)", expanded=False):
+            col_a, col_b = st.columns(2)
+            names = [a.vendor.name for a in analyses]
+            with col_a:
+                v1 = st.selectbox("Vendor A", names, index=0, key="cmp_a")
+            with col_b:
+                v2 = st.selectbox("Vendor B", names, index=min(1, len(names)-1), key="cmp_b")
+            if v1 and v2 and v1 != v2:
+                a1 = next(a for a in analyses if a.vendor.name == v1)
+                a2 = next(a for a in analyses if a.vendor.name == v2)
+                comp_df = pd.DataFrame([
+                    {"Pillar": "Cost", "Vendor": v1, "Score": a1.current_score.total_cost_score*100},
+                    {"Pillar": "Time", "Vendor": v1, "Score": a1.current_score.total_time_score*100},
+                    {"Pillar": "Vendor Maturity", "Vendor": v1, "Score": a1.current_score.reliability_score*100},
+                    {"Pillar": "Capacity", "Vendor": v1, "Score": a1.current_score.capacity_score*100},
+                    {"Pillar": "Cost", "Vendor": v2, "Score": a2.current_score.total_cost_score*100},
+                    {"Pillar": "Time", "Vendor": v2, "Score": a2.current_score.total_time_score*100},
+                    {"Pillar": "Vendor Maturity", "Vendor": v2, "Score": a2.current_score.reliability_score*100},
+                    {"Pillar": "Capacity", "Vendor": v2, "Score": a2.current_score.capacity_score*100},
+                ])
+                bar = alt.Chart(comp_df).mark_bar().encode(
+                    x=alt.X('Pillar:N', title='Pillar'),
+                    y=alt.Y('Score:Q', title='Score (%)', scale=alt.Scale(domain=[0,100])),
+                    color='Vendor:N',
+                    column=alt.Column('Pillar:N', title=None)
+                ).properties(height=220)
+                st.altair_chart(bar, use_container_width=True)
 
     # Vendor Detail panel
     if analyses:
@@ -406,6 +484,25 @@ if current_page == "Vendors":
             st.dataframe(parts_rows, use_container_width=True, height=320)
 elif current_page == "Components":
     st.header("Components")
+    with st.expander("Page guide: component data & metrics", expanded=False):
+        st.markdown(
+            """
+            - **What this page shows**: Flattened list of all components for the filtered vendors.
+            
+            - **HOW: Key metrics**
+              - **Landed Cost** = Unit Price + Freight + Tariff (unit × tariff%).
+              - **Total Time (days)** = Lead (weeks×7) + Transit (days).
+              - **Capacity** = Monthly capacity per part.
+            
+            - **WHY these metrics**
+              - **Landed Cost**: True delivered cost drives TCO and pricing.
+              - **Total Time**: Affects inventory, working capital, and service levels.
+              - **Capacity**: Signals ability to fulfill demand and absorb spikes.
+            
+            - **Filters**
+              - Component name filter narrows both vendor set and parts shown.
+            """
+        )
     # Flatten all parts across the (filtered) vendors
     parts_all: List[Dict] = []
     for v in vendors:
@@ -447,6 +544,20 @@ elif current_page == "Components":
         )
 elif current_page == "Kraljic Matrix":
     st.header("Kraljic Matrix Analysis")
+    with st.expander("Page guide: Kraljic logic & categories", expanded=False):
+        st.markdown(
+            """
+            - **What this page shows**: Supplier portfolio by **Annual Spend ($)** vs **Supply Risk (%)**.
+            
+            - **HOW: Categorization**
+              - If the Kraljic engine is available, it categorizes suppliers using spend and risk models.
+              - Fallback thresholds used here: Strategic (≥$100k & ≥60% risk), Leverage (≥$100k & <60%), Bottleneck (<$100k & ≥60%), Routine (<$100k & <60%).
+              - Fallback risk blends normalized time and inverse maturity when explicit risk is missing.
+            
+            - **WHY: Portfolio view**
+              - **Strategic**: partnership and risk reduction; **Leverage**: competitive sourcing; **Bottleneck**: secure supply; **Routine**: streamline.
+            """
+        )
     engine = KraljicEngine() if KRALJIC_AVAILABLE else None
     rows = []
     for a in analyses:
@@ -505,6 +616,20 @@ elif current_page == "Kraljic Matrix":
         st.dataframe(dfk.sort_values("Annual Spend ($)", ascending=False), use_container_width=True, hide_index=True, height=360)
 elif current_page == "TCO Analysis":
     st.header("Total Cost of Ownership (TCO) Analysis")
+    with st.expander("Page guide: TCO methodology", expanded=False):
+        st.markdown(
+            """
+            - **What this page shows**: 3‑year TCO estimates per vendor (proxy) and a comparison chart.
+            
+            - **HOW: Proxy TCO**
+              - `TCO (3yr) ≈ Σ(Annual Volume × Landed Cost × 3 years)` across vendor parts.
+              - Annual Volume uses demand forecast when available, else 50% utilization of installed capacity.
+            
+            - **WHY: 3‑year horizon**
+              - Captures recurring cost impact and volatility; better signal than unit price alone.
+            - **Note**: Replace with enterprise TCO calculator when ready.
+            """
+        )
     tco_rows = []
     for a in analyses:
         parts = a.parts
@@ -545,6 +670,21 @@ elif current_page == "TCO Analysis":
         )
 elif current_page == "Compliance":
     st.header("Compliance & Certifications")
+    with st.expander("Page guide: compliance scoring", expanded=False):
+        st.markdown(
+            """
+            - **What this page shows**: Compliance score (0–100%), risk, and key statuses (UFLPA, Conflict Minerals, RoHS, REACH, Audit).
+            
+            - **HOW: Compliance score**
+              - Five checks (UFLPA, Conflict Minerals, RoHS, REACH, Recent Audit). Score = % passed.
+            
+            - **WHY: Compliance**
+              - Reduces legal, reputational, and import risks; accelerates onboarding and audits.
+            
+            - **Risk levels**
+              - Low ≥ 80%, Medium 60–79%, High < 60% — guide remediation urgency.
+            """
+        )
     comp_rows = []
     for a in analyses:
         v = a.vendor
@@ -591,6 +731,14 @@ elif current_page == "Compliance":
         )
 elif current_page == "Analytics":
     st.header("Analytics")
+    with st.expander("Page guide: analytics & charts", expanded=False):
+        st.markdown(
+            """
+            - **Trend chart (HOW)**: Final Score (%) over time (mock data in prototype). **WHY**: Momentum and stability.
+            - **Cost vs Time (HOW)**: Bubble = capacity, color = maturity. **WHY**: Visualize trade‑offs and efficient frontier.
+            - **Tips**: Hover tooltips reveal vendor‑level metrics for deeper context.
+            """
+        )
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
     chart_data = []
     for a in analyses[:3]:
@@ -607,8 +755,44 @@ elif current_page == "Analytics":
         .properties(height=320, title="Vendor Final Score Trend (Mock)")
     )
     st.altair_chart(c, use_container_width=True)
+
+    # Cost vs Time scatter with capacity size and maturity color
+    if analyses:
+        scat_rows = []
+        for a in analyses:
+            scat_rows.append({
+                "Vendor": a.vendor.name,
+                "Avg Cost": a.avg_landed_cost,
+                "Avg Time": a.avg_total_time,
+                "Capacity": a.total_monthly_capacity,
+                "Maturity": a.current_score.reliability_score*100,
+            })
+        scat_df = pd.DataFrame(scat_rows)
+        scat = alt.Chart(scat_df).mark_circle().encode(
+            x=alt.X('Avg Cost:Q', title='Avg Landed Cost ($)'),
+            y=alt.Y('Avg Time:Q', title='Avg Total Time (days)'),
+            size=alt.Size('Capacity:Q', title='Capacity'),
+            color=alt.Color('Maturity:Q', title='Vendor Maturity (%)', scale=alt.Scale(scheme='blues')),
+            tooltip=['Vendor','Avg Cost','Avg Time','Capacity','Maturity']
+        ).properties(height=360, title='Cost vs Time (bubble = capacity, color = maturity)')
+        st.altair_chart(scat, use_container_width=True)
+
 elif current_page == "Settings":
     st.header("Settings")
+    with st.expander("Page guide: configuration & weights", expanded=False):
+        st.markdown(
+            """
+            - **HOW: Weights**
+              - Sliders set pillar emphasis; scoring uses normalized weights when enabled (recommended for comparability).
+              - Scale sliders resizes current values proportionally to sum to 100.
+              
+            - **WHY: Weights**
+              - Align the score with your sourcing strategy (e.g., time‑critical programs vs cost‑sensitive).
+              
+            - **Tip**
+              - Adjust weights and switch to Vendors to see immediate impact.
+            """
+        )
     st.subheader("Scoring Weights")
     st.write("Adjust sliders in the sidebar. The model auto-recomputes. Use 'Update Score' to note a refresh.")
     if st.session_state.get("last_updated"):
