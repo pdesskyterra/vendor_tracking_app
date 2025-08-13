@@ -831,102 +831,138 @@ elif current_page == "Settings":
 elif current_page == "About":
     st.header("About")
     st.markdown("Centralized methodology and reference for all pages.")
+
     tabs = st.tabs([
-        "Overview & Methodology",
-        "Components & Data",
+        "Scoring & Weights",
+        "Risk & Alerts",
         "Kraljic Matrix",
+        "Components & Data",
         "TCO Methodology",
-        "Compliance & Certifications",
-        "Analytics & Charts",
-        "Settings & Configuration",
+        "Compliance",
+        "Analytics",
+        "Settings & Export",
     ])
+
     with tabs[0]:
+        st.subheader("Scoring pillars, weights, and formulas")
         st.markdown(
             """
-            ### What this page shows
-            - Comprehensive vendor ranking with enhanced scoring across cost, time, vendor maturity, and capacity pillars
-            - Advanced risk assessment including compliance, operational, and supply chain risks
-            - Transparent calculation methodology using 31+ vendor properties when available
-            
-            ### How Enhanced Scoring Works
-            **Final Score Calculation:**
-            `Final Score = (Cost Score × Cost Weight) + (Time Score × Time Weight) + (Vendor Maturity × Maturity Weight) + (Capacity Score × Capacity Weight)`
-            - Weights configurable; normalized to 100%
-            - All pillars scored 0–100% via min‑max
-            
-            **Enhanced Vendor Maturity (5‑Dimensional Assessment):**
-            `Vendor Maturity = Operational(35%) + Financial(25%) + Innovation(20%) + Business(15%) + Partnership(5%)`
-            
-            **Dimensional Breakdown:**
-            - Operational: OTIF%, Lead‑Time Consistency, Quality
-            - Financial: Financial Stability, Debt Management
-            - Innovation & Technology: Digital Transformation, TRL, Patent Strength
-            - Business: Company Age, Size Factor
-            - Partnership & Communication: Communication Quality, Continuous Improvement
-            
-            **Fallback for Basic Vendors:**
-            Region reputation + Geopolitical alignment + Data freshness + Shipping risk
-            
-            ### Enhanced Risk Detection System
-            - Compliance: UFLPA (High), Conflict Minerals (High), Audit aging thresholds, ISO cert expectations by size
-            - Operational: Staleness Medium 120–180d / High >180d; Capacity High <2K, Medium <5K; Maturity High <25%, Medium <40%
-            - Supply Chain: Ocean >21d (High >35d), Air >10d (High >14d); Cost spikes High >25% MoM, Medium >15% MoM; RoHS/REACH thresholds
-            
-            ### Formulas
-            - Cost: unit + freight + tariff
-            - Time: lead×7 + transit
-            - Quality: 1 − min(PPM/1000, 1)
-            - Debt mgmt: min(1,max(0,(4−D/E)/4))
-            - Age factor: min(1, age/25)
+            #### Final score
+            `Final Score = (Cost Score × Cost Weight) + (Time Score × Time Weight) + (Vendor Maturity Score × Maturity Weight) + (Capacity Score × Capacity Weight)`
+
+            - Default weights: Cost 40%, Time 30%, Vendor Maturity 20%, Capacity 10% (Settings can change; weights normalize to 100%).
+            - Scores are 0–100% in UI (internally 0–1).
+            - Normalization: winsorize outliers then min‑max scale across the vendor portfolio (lower is better for cost/time; higher is better for maturity/capacity).
+
+            #### Pillars and inputs
+            - **Total Cost Score (lower is better)**
+              - Input: average landed cost across vendor parts.
+              - Landed cost per part: `unit_price + freight_cost + unit_price × (tariff_rate_pct/100)`
+              - Scaled with min‑max (inverted) across all vendors.
+            - **Total Time Score (lower is better)**
+              - Input: average total time across vendor parts.
+              - Total time per part: `lead_time_weeks × 7 + transit_days`
+              - Scaled with min‑max (inverted).
+            - **Vendor Maturity Score (higher is better)**
+              - Enhanced mode (preferred): uses comprehensive maturity provided in data (`Vendor Maturity Score`).
+              - Proxy mode (fallback): based on region reputation, geopolitics alignment, data freshness, shipping risk.
+              - Enhanced subcomponents (used for transparency and/or internal computation):
+                - Operational Excellence (35%): OTIF%, Lead‑Time Consistency, Quality Score
+                - Financial Maturity (25%): Financial Stability, Debt Management
+                - Innovation & Technology (20%): Digital Transformation, TRL, Patent Strength
+                - Business Maturity (15%): Company Age factor, Company Size factor
+                - Partnership & Communication (5%): Communication Quality, Continuous Improvement
+            - **Capacity Score (higher is better)**
+              - Input: total monthly capacity aggregated for vendor parts.
+              - Scaled with min‑max.
+
+            #### Sub-metric formulas
+            - Quality Score: `1 − min(PPM_defects/1000, 1)`
+            - Debt Management: `min(1, max(0, (4 − debt_to_equity)/4))`
+            - Company Age Factor: `min(1, age_years/25)`
             """
         )
+
     with tabs[1]:
+        st.subheader("Risk flags and thresholds")
         st.markdown(
             """
-            ### Components & Data
-            - Per part inputs: component, vendor, destination/region, unit price, freight, tariff rate, lead time (wks), transit days, mode, monthly capacity, last verified
-            - Derived: total landed cost; total time (days)
+            - **Compliance (high priority):**
+              - UFLPA non‑compliance → High
+              - Conflict minerals non‑compliance → High
+              - Audit status: None (Medium), >18 months (Low), >2 years (Medium), >3 years (High)
+              - ISO certification deficiency by size (Enterprise 5+, Large 4+, Medium 2+, Small 1+): 0 → Medium; below expected (>0) → Low
+            - **Operational:**
+              - Data staleness: Medium 120–180 days, High >180 days
+              - Capacity: High <2K units/month, Medium <5K units/month
+              - Low maturity: High <25%, Medium <40%
+            - **Supply chain:**
+              - Delays: Ocean >21 days (High >35 days); Air >10 days (High >14 days)
+              - Cost spikes: High >25% MoM, Medium >15% MoM
+              - Part compliance: RoHS High <80% (Medium <90%); REACH High <70% (Medium <80%)
+
+            Notes: thresholds are adjustable in Settings for staleness, capacity, delays, and cost spikes; flags are additive and visible per vendor.
             """
         )
+
     with tabs[2]:
+        st.subheader("Kraljic Matrix")
         st.markdown(
             """
-            ### Kraljic Matrix
-            - Thresholds: Spend ≥ $100k; Risk ≥ 60% (fallback mode)
-            - Risk proxy: mix of normalized time and inverse maturity when explicit risk missing
-            - Quadrants and strategies: Strategic, Leverage, Bottleneck, Routine
+            - **Axes:** Annual Spend (impact on profit) vs Supply Risk.
+            - **Thresholds (fallback mode):** Spend ≥ $100k; Risk ≥ 60% (both configurable). 4 quadrants:
+              - Strategic (high spend, high risk)
+              - Leverage (high spend, low risk)
+              - Bottleneck (low spend, high risk)
+              - Routine (low spend, low risk)
+            - **Risk proxy (fallback):** `min(1, 0.6 × time_norm + 0.4 × (1 − maturity))` when explicit risk not available.
+            - **Strategies:** Strategic: partner/dual source; Leverage: competition/volume; Bottleneck: continuity/safety stock; Routine: streamline/automate.
             """
         )
+
     with tabs[3]:
+        st.subheader("Components & data inputs")
         st.markdown(
             """
-            ### TCO Methodology
-            - TCO ≈ Σ(Annual Volume × Landed Cost × 3 years); forecast else 50% capacity
-            - Outputs: Portfolio TCO, Avg TCO/vendor
+            - Per part inputs: `component_name`, `vendor`, `odm_destination`, `odm_region`, `unit_price`, `freight_cost`, `tariff_rate_pct`, `lead_time_weeks`, `transit_days`, `shipping_mode`, `monthly_capacity`, `last_verified`.
+            - Derived per part: `total_landed_cost`, `total_time_days`.
+            - Vendor‑level aggregates: average landed cost, average total time, total monthly capacity; maturity data when available.
             """
         )
+
     with tabs[4]:
+        st.subheader("TCO methodology")
         st.markdown(
             """
-            ### Compliance & Certifications
-            - Score: 5 checks (UFLPA, Conflict Minerals, RoHS, REACH, Audit presence) equally weighted
-            - Risk levels: High <60%, Medium 60–79%, Low ≥80%
-            - Thresholds: Audit aging; ISO counts by size; RoHS/REACH part compliance
+            - 3‑Year TCO (prototype): `Σ(annual_volume × total_landed_cost × 3)` across vendor parts.
+            - Annual volume uses forecast when present; else a utilization factor of capacity (see Settings).
+            - Outputs: total portfolio TCO, average per vendor; sortable/exportable table.
             """
         )
+
     with tabs[5]:
+        st.subheader("Compliance scoring")
         st.markdown(
             """
-            ### Analytics & Charts
-            - Trend and Cost‑vs‑Time bubble chart; KPI definitions
-            - Bubble chart: size = capacity; color = maturity
+            - **Compliance Score:** 5 equally weighted checks (UFLPA, Conflict Minerals, RoHS, REACH, Audit presence); score = (# passed ÷ 5) × 100.
+            - **Risk levels:** High <60%, Medium 60–79%, Low ≥80%.
+            - **Part‑level:** RoHS/REACH flags roll up to vendor view; thresholds as listed in Risk flags.
             """
         )
+
     with tabs[6]:
+        st.subheader("Settings, normalization, and export")
         st.markdown(
             """
-            ### Settings & Configuration
-            - Weights & normalization; Kraljic thresholds; risk thresholds; Save/Export behavior
-            - Notion Scores DB schema: Relation Vendor; Number(%) scores; Snapshot (Date+time); Weights/Inputs JSON
+            - **Weights & normalization:** adjust weights (min‑max normalized). Z‑score option is planned placeholder.
+            - **Kraljic thresholds:** spend, risk, utilization factor.
+            - **Risk thresholds:** staleness days, capacity cutoffs, ocean/air delay thresholds, cost spike %.
+            - **Save/Export:**
+              - Notion: one snapshot per vendor per save; Title "{Vendor} – {YYYY‑MM‑DD HH:MM:SS}"; Snapshot (date‑time).
+              - CSV/XLSX: immediate download of current score table.
+            - **Notion Scores DB schema:**
+              - Title (any name) – auto‑filled; Vendor (Relation to Vendors DB)
+              - Total Cost/Time/Vendor Maturity/Capacity/Final Score: Number (Percent)
+              - Snapshot: Date (time enabled); Weights JSON, Inputs JSON: Rich text
             """
         ) 
