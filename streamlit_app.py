@@ -117,6 +117,15 @@ def compute_analyses(
     weights: ScoringWeights,
 ) -> List[VendorAnalysis]:
     engine = ScoringEngine(weights)
+    # Apply runtime threshold overrides from Settings
+    try:
+        engine.staleness_threshold_days = int(st.session_state.get("risk_staleness_days", engine.staleness_threshold_days))
+        engine.capacity_shortfall_threshold = int(st.session_state.get("risk_capacity_high", engine.capacity_shortfall_threshold))
+        engine.cost_spike_threshold = float(st.session_state.get("risk_cost_spike_high_pct", 25)) / 100.0
+        engine.ocean_delay_high_days = int(st.session_state.get("risk_ocean_high_days", getattr(engine, 'ocean_delay_high_days', 35)))
+        engine.air_delay_high_days = int(st.session_state.get("risk_air_high_days", getattr(engine, 'air_delay_high_days', 14)))
+    except Exception:
+        pass
     return engine.score_vendors(vendors, parts_by_vendor)
 
 
@@ -907,15 +916,119 @@ elif current_page == "Settings":
             """
             ### What this page shows
             - Weight controls and normalization settings.
+            - Kraljic threshold customization and utilization factor.
+            - Risk flag thresholds for staleness, capacity, delay, and cost spikes.
+            - Save/Export of current scores to Notion Scores DB or CSV/XLSX.
             
             ### How it works
-            - Sliders set pillar emphasis; Scale resizes to 100; Enforce normalizes weights during scoring.
-            
-            ### Why it matters
-            - Aligns scoring with business priorities and makes comparisons fair.
+            - Sliders set pillar emphasis; weights normalize to 100%.
+            - Kraljic classification uses either absolute thresholds or percentile split.
+            - Risk sliders change the thresholds used by the flag engine.
+            - Save Scores writes a snapshot to configured destination.
             """
         )
+
     st.subheader("Scoring Weights")
-    st.write("Adjust sliders in the sidebar. The model auto-recomputes. Use 'Update Score' to note a refresh.")
-    if st.session_state.get("last_updated"):
-        st.info("Scores updated just now.") 
+    st.write("Adjust sliders in the sidebar. The model auto-recomputes.")
+
+    st.divider()
+    st.subheader("Kraljic Settings")
+    c1, c2, c3 = st.columns(3)
+    spend_threshold = c1.number_input("Spend threshold ($)", min_value=0, value=100000, step=10000)
+    risk_threshold_pct = c2.slider("Risk threshold (%)", 0, 100, 60, step=5)
+    utilization_factor = c3.slider("Utilization factor (capacity%)", 0, 100, 50, step=5)
+    percentile_split = st.checkbox("Use percentile split (median) instead of fixed thresholds", value=False)
+
+    st.divider()
+    st.subheader("Risk Thresholds")
+    c1, c2 = st.columns(2)
+    staleness_days = c1.slider("Staleness flag at ≥ days", 30, 365, 120, step=10)
+    capacity_high = c2.number_input("High risk if capacity <", min_value=0, value=2000, step=500)
+    c3, c4 = st.columns(2)
+    ocean_high = c3.number_input("Ocean high-risk if transit days >", min_value=0, value=35, step=1)
+    air_high = c4.number_input("Air high-risk if transit days >", min_value=0, value=14, step=1)
+    cost_spike_high = st.slider("Cost spike high if MoM > %", 0, 100, 25, step=1)
+
+    st.divider()
+    st.subheader("Normalization")
+    norm_method = st.radio("Normalization method", ["Min-Max", "Z-Score"], index=0, horizontal=True)
+
+    # Persist in session for use elsewhere
+    st.session_state["kraljic_spend_threshold"] = spend_threshold
+    st.session_state["kraljic_risk_threshold_pct"] = risk_threshold_pct
+    st.session_state["kraljic_utilization_pct"] = utilization_factor
+    st.session_state["kraljic_percentile_split"] = percentile_split
+    st.session_state["risk_staleness_days"] = staleness_days
+    st.session_state["risk_capacity_high"] = capacity_high
+    st.session_state["risk_ocean_high_days"] = ocean_high
+    st.session_state["risk_air_high_days"] = air_high
+    st.session_state["risk_cost_spike_high_pct"] = cost_spike_high
+    st.session_state["norm_method"] = norm_method
+
+    st.divider()
+    st.subheader("Save / Export Scores")
+    dest = st.radio("Destination", ["Notion Scores DB", "CSV", "XLSX"], index=0, horizontal=True)
+    filename = st.text_input("Filename (for CSV/XLSX)", value="vendor_scores")
+    save_btn = st.button("Save Scores", type="primary")
+
+    if save_btn:
+        # Recompute scores with current weights
+        vendors, parts_by_vendor = fetch_vendors_and_parts()
+        weights_scoring = ScoringWeights(
+            total_cost=st.session_state.get("weights_total_cost", 0.4),
+            total_time=st.session_state.get("weights_total_time", 0.3),
+            reliability=st.session_state.get("weights_reliability", 0.2),
+            capacity=st.session_state.get("weights_capacity", 0.1),
+        )
+        analyses = compute_analyses(vendors, parts_by_vendor, weights_scoring)
+        # Build dataframe of scores
+        rows = []
+        for a in analyses:
+            rows.append({
+                "Vendor ID": a.vendor.id,
+                "Vendor": a.vendor.name,
+                "Total Cost Score": round(a.current_score.total_cost_score, 4),
+                "Total Time Score": round(a.current_score.total_time_score, 4),
+                "Reliability Score": round(a.current_score.reliability_score, 4),
+                "Capacity Score": round(a.current_score.capacity_score, 4),
+                "Final Score": round(a.current_score.final_score, 4),
+            })
+        df_scores = pd.DataFrame(rows)
+
+        if dest == "Notion Scores DB":
+            try:
+                repo = NotionRepository()
+                saved = 0
+                from datetime import datetime
+                snapnow = datetime.now()
+                for a in analyses:
+                    vs = a.current_score
+                    # ensure metadata fields are populated
+                    vs.weights = {
+                        "total_cost": weights_scoring.total_cost,
+                        "total_time": weights_scoring.total_time,
+                        "reliability": weights_scoring.reliability,
+                        "capacity": weights_scoring.capacity,
+                    }
+                    vs.inputs = {
+                        "avg_landed_cost": a.avg_landed_cost,
+                        "avg_total_time": a.avg_total_time,
+                        "total_monthly_capacity": a.total_monthly_capacity,
+                    }
+                    repo.create_vendor_score(a.vendor.id, vs, vendor_name=a.vendor.name, snapshot_dt=snapnow)
+                    saved += 1
+                st.success(f"Saved {saved} score snapshots to Notion Scores DB")
+            except Exception as e:
+                st.error(f"Failed to save to Notion: {e}")
+        elif dest == "CSV":
+            out = df_scores.to_csv(index=False).encode("utf-8")
+            st.download_button("Download CSV", out, file_name=f"{filename}.csv", mime="text/csv")
+        else:
+            try:
+                from io import BytesIO
+                buffer = BytesIO()
+                with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+                    df_scores.to_excel(writer, index=False, sheet_name="Scores")
+                st.download_button("Download XLSX", buffer.getvalue(), file_name=f"{filename}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            except Exception as e:
+                st.error(f"Failed to generate XLSX: {e}") 

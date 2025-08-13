@@ -54,7 +54,10 @@ class NotionRepository:
         adapter = HTTPAdapter(max_retries=retry_strategy)
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
-        
+
+        # Cache for database title property names
+        self._db_title_name_cache: Dict[str, str] = {}
+    
     def _rate_limit(self):
         """Ensure we don't exceed Notion's rate limits."""
         current_time = time.time()
@@ -85,6 +88,23 @@ class NotionRepository:
             raise NotionAPIError(error_msg)
         
         return response.json()
+
+    def _get_db_title_prop_name(self, db_id: str) -> str:
+        """Return the name of the title property for a database."""
+        if not db_id:
+            return "Name"
+        if db_id in self._db_title_name_cache:
+            return self._db_title_name_cache[db_id]
+        try:
+            resp = self._make_request("GET", f"/databases/{db_id}")
+            props = resp.get("properties", {})
+            for pname, pdef in props.items():
+                if pdef.get("type") == "title":
+                    self._db_title_name_cache[db_id] = pname
+                    return pname
+        except Exception:
+            pass
+        return "Name"
     
     def _ensure_database_exists(self, db_id: str, schema: Dict[str, Any]) -> str:
         """Ensure database exists and has correct schema, create if needed."""
@@ -218,8 +238,12 @@ class NotionRepository:
                 id=page["id"],
                 name=self._get_title(props.get("Name")),
                 region=self._get_select(props.get("Region")),
-                reliability_score=self._get_number(props.get("Reliability Score")) or 0.0,
-                contact_email=self._get_email(props.get("Contact Email")),
+                reliability_score=(
+                    self._get_number(props.get("Vendor Maturity Score"))
+                    or self._get_number(props.get("Reliability Score"))
+                    or 0.0
+                ),
+                contact_email=self._get_email(props.get("Contact Email")) if "Contact Email" in props else self._get_email(props.get("Email")),
                 last_verified=self._get_date(props.get("Last Verified")),
                 created_time=self._get_created_time(props.get("Created Time"))
             )
@@ -424,3 +448,65 @@ class NotionRepository:
         if not prop or not prop.get("relation"):
             return ""
         return prop["relation"][0]["id"] if prop["relation"] else ""
+
+    # Scores operations
+    def create_vendor_score(self, vendor_id: str, score: VendorScore, vendor_name: Optional[str] = None, snapshot_dt: Optional[datetime] = None) -> str:
+        """Create a score snapshot in the Scores database for a vendor.
+        Expects SCORES_DB_ID to be configured. Numbers are provided as decimals (0..1) for percent fields.
+        Optionally provide vendor_name to populate the Title property and snapshot_dt to set a date-time column.
+        """
+        if not self.scores_db_id:
+            raise NotionAPIError("SCORES_DB_ID is not configured. Add it to secrets or environment.")
+
+        properties: Dict[str, Any] = {
+            "Vendor": {"relation": [{"id": vendor_id}]},
+            "Total Cost Score": {"number": float(score.total_cost_score or 0.0)},
+            "Total Time Score": {"number": float(score.total_time_score or 0.0)},
+            "Vendor Maturity Score": {"number": float(score.reliability_score or 0.0)},
+            "Capacity Score": {"number": float(score.capacity_score or 0.0)},
+            "Final Score": {"number": float(score.final_score or 0.0)},
+        }
+
+        # Optional metadata as rich text
+        if getattr(score, "weights_json", None):
+            properties["Weights JSON"] = {"rich_text": [{"text": {"content": score.weights_json[:1999]}}]}
+        if getattr(score, "inputs_json", None):
+            properties["Inputs JSON"] = {"rich_text": [{"text": {"content": score.inputs_json[:1999]}}]}
+
+        # Snapshot date-time
+        snap_iso: Optional[str] = None
+        if snapshot_dt is not None:
+            try:
+                snap_iso = snapshot_dt.isoformat()
+            except Exception:
+                snap_iso = None
+        if not snap_iso and getattr(score, "snapshot_date", None):
+            try:
+                snap_iso = score.snapshot_date.isoformat()
+            except Exception:
+                snap_iso = None
+        if not snap_iso:
+            try:
+                snap_iso = datetime.now().isoformat()
+            except Exception:
+                snap_iso = None
+        if snap_iso:
+            properties["Snapshot"] = {"date": {"start": snap_iso}}
+
+        data = {
+            "parent": {"database_id": self.scores_db_id},
+            "properties": properties,
+        }
+
+        # Optional Title property (respect actual title property name)
+        if vendor_name or snap_iso:
+            title_text = vendor_name or vendor_id
+            if snap_iso:
+                title_text = f"{title_text} – {snap_iso[:19].replace('T',' ')}"
+            title_prop = self._get_db_title_prop_name(self.scores_db_id)
+            data["properties"][title_prop] = {"title": [{"text": {"content": title_text}}]}
+
+        response = self._make_request("POST", f"/pages", json=data)
+        page_id = response.get("id")
+        logger.info(f"Created vendor score for {vendor_id} with ID {page_id}")
+        return page_id

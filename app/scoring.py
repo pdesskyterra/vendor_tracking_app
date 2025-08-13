@@ -25,6 +25,9 @@ class ScoringEngine:
         self.delay_spike_threshold = 5    # Additional days (was 3)
         self.capacity_shortfall_threshold = 5000  # 5K units/month (was 10K)
         self.staleness_threshold_days = 120  # 120 days (was 90)
+        # Delay high thresholds (can be overridden at runtime)
+        self.ocean_delay_high_days = 35
+        self.air_delay_high_days = 14
     
     def score_vendors(self, vendors: List[Vendor], parts_by_vendor: Dict[str, List[Part]], 
                      historical_scores: Optional[Dict[str, List[VendorScore]]] = None) -> List[VendorAnalysis]:
@@ -333,7 +336,7 @@ class ScoringEngine:
             if part.shipping_mode == "Ocean" and part.transit_days > 21:  # 3 weeks for ocean
                 flags.append(RiskFlag(
                     type="delay_risk",
-                    severity="high" if part.transit_days > 35 else "medium",  # 5+ weeks = high risk
+                    severity="high" if part.transit_days > getattr(self, 'ocean_delay_high_days', 35) else "medium",
                     description=f"Extended ocean transit time: {part.transit_days} days for {part.component_name}",
                     value=part.transit_days,
                     threshold=21
@@ -341,7 +344,7 @@ class ScoringEngine:
             elif part.shipping_mode == "Air" and part.transit_days > 10:  # 10 days for air
                 flags.append(RiskFlag(
                     type="delay_risk", 
-                    severity="high" if part.transit_days > 14 else "medium",  # 2+ weeks = high risk
+                    severity="high" if part.transit_days > getattr(self, 'air_delay_high_days', 14) else "medium",
                     description=f"Extended air transit delay: {part.transit_days} days for {part.component_name}",
                     value=part.transit_days,
                     threshold=10
