@@ -8,14 +8,37 @@ import re
 import math
 from streamlit import column_config as cc
 
+from app.notion_repo import NotionRepository, NotionAPIError
+from app.scoring import ScoringEngine
+from app.models import Vendor, Part, VendorAnalysis, ScoringWeights
+try:
+    from app.kraljic import KraljicEngine
+    KRALJIC_AVAILABLE = True
+except Exception:
+    KraljicEngine = None
+    KRALJIC_AVAILABLE = False
+import numpy as np
+
+# Optional Plotly support (fallback to Altair if unavailable)
+try:
+    import plotly.express as px
+    PLOTLY_AVAILABLE = True
+except Exception:
+    PLOTLY_AVAILABLE = False
+
+def safe_plotly_bar(df, x, y, title):
+    if PLOTLY_AVAILABLE:
+        fig = px.bar(df, x=x, y=y, title=title)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        chart = alt.Chart(df).mark_bar().encode(x=x, y=y).properties(title=title)
+        st.altair_chart(chart, use_container_width=True)
+
 def nobreak_vs(text: str) -> str:
     pattern = r"(\$?\d+(?:\.\d+)?)\s*vs\s*(\$?\d+(?:\.\d+)?)"
     return re.sub(pattern, lambda m: f"{m.group(1)}\u00A0vs\u00A0{m.group(2)}", text)
 
 # Reuse existing app logic
-from app.notion_repo import NotionRepository, NotionAPIError
-from app.scoring import ScoringEngine
-from app.models import Vendor, Part, VendorAnalysis, ScoringWeights
 
 
 def _bootstrap_env_from_streamlit_secrets():
@@ -42,9 +65,9 @@ st.set_page_config(page_title="Synseer Vendor Database", layout="wide")
 # Top navigation as a horizontal radio (clickable titles)
 current_page = st.radio(
     "",
-    ["Vendors", "Components", "Analytics", "Settings"],
+    ["Vendors", "Components", "Kraljic Matrix", "TCO Analysis", "Compliance", "Analytics", "Settings"],
     horizontal=True,
-    index=["Vendors", "Components", "Analytics", "Settings"].index(
+    index=["Vendors", "Components", "Kraljic Matrix", "TCO Analysis", "Compliance", "Analytics", "Settings"].index(
         st.session_state.get("page", "Vendors")
     ),
 )
@@ -419,6 +442,150 @@ elif current_page == "Components":
                 "Transit (days)": cc.NumberColumn(format="%d"),
                 "Total Time (days)": cc.NumberColumn(format="%d"),
                 "Capacity": cc.NumberColumn(format="%d"),
+            },
+            height=420,
+        )
+elif current_page == "Kraljic Matrix":
+    st.header("Kraljic Matrix Analysis")
+    engine = KraljicEngine() if KRALJIC_AVAILABLE else None
+    rows = []
+    for a in analyses:
+        v = a.vendor
+        v_parts = parts_by_vendor.get(v.id, [])
+        spend = getattr(v, "annual_spend_usd", 0) or 0
+        if spend == 0 and v_parts:
+            spend = sum((getattr(p, "annual_demand_forecast", 0) or p.monthly_capacity * 12 * 0.5) * p.total_landed_cost for p in v_parts)
+        supply_risk = getattr(v, "supply_risk_score", 0) or 0
+        if supply_risk == 0:
+            # fallback simple risk: longer time and low maturity increase risk
+            time_norm = a.avg_total_time / max(1, max(x.avg_total_time for x in analyses))
+            maturity_norm = 1 - a.current_score.reliability_score
+            supply_risk = min(1.0, 0.6 * time_norm + 0.4 * maturity_norm)
+        if engine:
+            category = getattr(v, "kraljic_category", None) or engine.categorize_vendor(v, v_parts)
+            category_value = category.value if category else "Unknown"
+        else:
+            # Fallback categorization based on thresholds
+            risk_pct = supply_risk * 100
+            if spend >= 100000 and risk_pct >= 60:
+                category_value = "Strategic"
+            elif spend >= 100000 and risk_pct < 60:
+                category_value = "Leverage"
+            elif spend < 100000 and risk_pct >= 60:
+                category_value = "Bottleneck"
+            else:
+                category_value = "Routine"
+        rows.append({
+            "Vendor": v.name,
+            "Region": v.region,
+            "Annual Spend ($)": spend,
+            "Supply Risk (%)": supply_risk * 100,
+            "Category": category_value,
+        })
+    if not rows:
+        st.info("No vendor data available for Kraljic analysis.")
+    else:
+        dfk = pd.DataFrame(rows)
+        # Summary metrics
+        c1, c2, c3, c4 = st.columns(4)
+        counts = dfk["Category"].value_counts()
+        c1.metric("Strategic", int(counts.get("Strategic", 0)))
+        c2.metric("Leverage", int(counts.get("Leverage", 0)))
+        c3.metric("Bottleneck", int(counts.get("Bottleneck", 0)))
+        c4.metric("Routine", int(counts.get("Routine", 0)))
+        st.divider()
+        # Scatter plot (Altair fallback)
+        chart = alt.Chart(dfk).mark_circle(size=120).encode(
+            x=alt.X("Annual Spend ($):Q", title="Annual Spend ($)"),
+            y=alt.Y("Supply Risk (%):Q", title="Supply Risk (%)"),
+            color=alt.Color("Category:N"),
+            tooltip=["Vendor", "Annual Spend ($)", "Supply Risk (%)", "Category"],
+        ).properties(height=380, title="Supplier Portfolio (Kraljic)")
+        st.altair_chart(chart, use_container_width=True)
+        st.dataframe(dfk.sort_values("Annual Spend ($)", ascending=False), use_container_width=True, hide_index=True, height=360)
+elif current_page == "TCO Analysis":
+    st.header("Total Cost of Ownership (TCO) Analysis")
+    tco_rows = []
+    for a in analyses:
+        parts = a.parts
+        if not parts:
+            continue
+        total_tco = 0.0
+        for p in parts:
+            # 3-year TCO proxy if method not available
+            annual_vol = getattr(p, "annual_demand_forecast", 0) or (p.monthly_capacity * 12 * 0.5)
+            total_tco += annual_vol * p.total_landed_cost * 3
+        tco_rows.append({
+            "Vendor": a.vendor.name,
+            "Region": a.vendor.region,
+            "Parts": len(parts),
+            "Total 3-Year TCO": total_tco,
+            "Avg TCO per Part": total_tco / len(parts),
+        })
+    if not tco_rows:
+        st.info("No data available for TCO analysis.")
+    else:
+        df_tco = pd.DataFrame(tco_rows)
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Portfolio TCO", f"${df_tco['Total 3-Year TCO'].sum():,.0f}")
+        col2.metric("Avg TCO/Vendor", f"${df_tco['Total 3-Year TCO'].mean():,.0f}")
+        col3.metric("Vendors", len(df_tco))
+        col4.metric("Avg Parts/Vendor", f"{df_tco['Parts'].mean():.1f}")
+        st.divider()
+        safe_plotly_bar(df_tco.sort_values('Total 3-Year TCO', ascending=True), x='Total 3-Year TCO', y='Vendor', title='3-Year TCO by Vendor')
+        st.dataframe(
+            df_tco.sort_values('Total 3-Year TCO', ascending=False),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Total 3-Year TCO": cc.NumberColumn(format="$%.0f"),
+                "Avg TCO per Part": cc.NumberColumn(format="$%.0f"),
+            },
+            height=400,
+        )
+elif current_page == "Compliance":
+    st.header("Compliance & Certifications")
+    comp_rows = []
+    for a in analyses:
+        v = a.vendor
+        parts = a.parts
+        uflpa = getattr(v, "uflpa_compliant", False)
+        conflict = getattr(v, "conflict_minerals_compliant", False)
+        rohs = any(getattr(p, "rohs_compliant", False) for p in parts)
+        reach = any(getattr(p, "reach_compliant", False) for p in parts)
+        last_audit = getattr(v, "last_audit_date", None)
+        certs = len(getattr(v, "iso_certifications", []) or [])
+        score = (sum([uflpa, conflict, rohs, reach, bool(last_audit)]) / 5) * 100
+        risk = "Low" if score >= 80 else ("Medium" if score >= 60 else "High")
+        comp_rows.append({
+            "Vendor": v.name,
+            "Region": v.region,
+            "Compliance Score": score,
+            "Risk Level": risk,
+            "UFLPA": "✅" if uflpa else "❌",
+            "Conflict Minerals": "✅" if conflict else "❌",
+            "RoHS": "✅" if rohs else "❌",
+            "REACH": "✅" if reach else "❌",
+            "Last Audit": str(last_audit) if last_audit else "Never",
+            "Certifications": certs,
+        })
+    if not comp_rows:
+        st.info("No compliance data available.")
+    else:
+        dfc = pd.DataFrame(comp_rows)
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Avg Compliance", f"{dfc['Compliance Score'].mean():.1f}%")
+        c2.metric("High Risk Vendors", int((dfc['Risk Level'] == 'High').sum()))
+        c3.metric("Medium Risk Vendors", int((dfc['Risk Level'] == 'Medium').sum()))
+        c4.metric("Low Risk Vendors", int((dfc['Risk Level'] == 'Low').sum()))
+        st.divider()
+        st.dataframe(
+            dfc,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Compliance Score": cc.NumberColumn(format="%.1f%%"),
+                "Certifications": cc.NumberColumn(format="%d"),
             },
             height=420,
         )
