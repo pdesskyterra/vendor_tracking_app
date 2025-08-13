@@ -273,33 +273,18 @@ if current_page == "Vendors":
     with st.expander("Page guide: methodology and metrics", expanded=False):
         st.markdown(
             """
-            - **What this page shows**: Ranked vendor list, pillar scores, costs/times, capacity, and risk indicators.
+            ### What this page shows
+            - Ranked vendor list, pillar scores, costs/times, capacity, risk flags, and advanced metrics.
             
-            - **HOW: Final Score**
-              - Weighted sum of pillar scores (0–100%). Weights set in the sidebar and normalized to 100% (when enabled).
-              - `Final = Cost×w_cost + Time×w_time + Vendor Maturity×w_vm + Capacity×w_cap`
-              - Per pillar: winsorize outliers, min–max normalize across vendors. Cost/Time are inverted (lower is better).
+            ### How it works
+            - Final Score = weighted sum of pillar scores (0–100%). Weights set in sidebar and normalized (when enabled).
+            - Per pillar: winsorize outliers, min–max normalize across vendors; invert Cost/Time so lower is better.
+            - Risk flags: staleness, delay risk thresholds, capacity shortfall; cost spikes when history exists.
+            - Advanced metrics: percentile and z‑score for cost/time; composite risk index.
             
-            - **WHY these pillars**
-              - **Cost**: Direct impact on margins and BOM feasibility.
-              - **Time**: Lead/transit times drive cash cycles and schedule risk.
-              - **Vendor Maturity**: Execution reliability and resilience reduce hidden costs and supply shocks.
-              - **Capacity**: Ability to meet demand and scale without constraints.
-            
-            - **HOW: Risk flags**
-              - Stale data (last verification > 30 days), delay risks (Ocean >14d, Air >7d), capacity shortfall (<10k/mo), cost spikes (>10% MoM when history is available).
-            
-            - **WHY: Risk flags**
-              - Surface operational and data-quality risks early for remediation and sourcing decisions.
-            
-            - **Advanced metrics (toggle)**
-              - **Percentile** (HOW): relative rank across vendors, 0–100%. **WHY**: Quick benchmarking.
-              - **Z‑score** (HOW): (value − mean) / std. **WHY**: Highlights outliers vs portfolio average.
-              - **Composite Risk Index** (HOW): weighted count of flags, staleness, capacity shortfall → 0–100. **WHY**: Single glance risk prioritization.
-            
-            - **Tips**
-              - Use Compare Vendors to see pillar trade‑offs side‑by‑side.
-              - Use Scale/Enforce 100% to keep weights precise and comparable.
+            ### Why it matters
+            - Holistic view blends cost, speed, reliability (maturity) and capacity.
+            - Transparent scoring and risk surfacing support decisions and stakeholder trust.
             """
         )
     # Executive summary
@@ -422,11 +407,12 @@ if current_page == "Vendors":
                     {"Pillar": "Capacity", "Vendor": v2, "Score": a2.current_score.capacity_score*100},
                 ])
                 bar = alt.Chart(comp_df).mark_bar().encode(
-                    x=alt.X('Pillar:N', title='Pillar'),
+                    x=alt.X('Pillar:N', title='Pillar', sort=["Cost","Time","Vendor Maturity","Capacity"]),
+                    xOffset='Vendor:N',
                     y=alt.Y('Score:Q', title='Score (%)', scale=alt.Scale(domain=[0,100])),
-                    color='Vendor:N',
-                    column=alt.Column('Pillar:N', title=None)
-                ).properties(height=220)
+                    color=alt.Color('Vendor:N'),
+                    tooltip=['Vendor','Pillar','Score']
+                ).properties(height=260)
                 st.altair_chart(bar, use_container_width=True)
 
     # Vendor Detail panel
@@ -487,20 +473,14 @@ elif current_page == "Components":
     with st.expander("Page guide: component data & metrics", expanded=False):
         st.markdown(
             """
-            - **What this page shows**: Flattened list of all components for the filtered vendors.
+            ### What this page shows
+            - All components across filtered vendors with cost/time/capacity metrics.
             
-            - **HOW: Key metrics**
-              - **Landed Cost** = Unit Price + Freight + Tariff (unit × tariff%).
-              - **Total Time (days)** = Lead (weeks×7) + Transit (days).
-              - **Capacity** = Monthly capacity per part.
+            ### How it works
+            - Landed Cost = Unit Price + Freight + Tariff; Total Time = Lead×7 + Transit; Capacity = monthly capacity.
             
-            - **WHY these metrics**
-              - **Landed Cost**: True delivered cost drives TCO and pricing.
-              - **Total Time**: Affects inventory, working capital, and service levels.
-              - **Capacity**: Signals ability to fulfill demand and absorb spikes.
-            
-            - **Filters**
-              - Component name filter narrows both vendor set and parts shown.
+            ### Why it matters
+            - Identifies cost/time hotspots and capacity constraints at part level.
             """
         )
     # Flatten all parts across the (filtered) vendors
@@ -547,15 +527,15 @@ elif current_page == "Kraljic Matrix":
     with st.expander("Page guide: Kraljic logic & categories", expanded=False):
         st.markdown(
             """
-            - **What this page shows**: Supplier portfolio by **Annual Spend ($)** vs **Supply Risk (%)**.
+            ### What this page shows
+            - Supplier portfolio by Annual Spend vs Supply Risk and categories.
             
-            - **HOW: Categorization**
-              - If the Kraljic engine is available, it categorizes suppliers using spend and risk models.
-              - Fallback thresholds used here: Strategic (≥$100k & ≥60% risk), Leverage (≥$100k & <60%), Bottleneck (<$100k & ≥60%), Routine (<$100k & <60%).
-              - Fallback risk blends normalized time and inverse maturity when explicit risk is missing.
+            ### How it works
+            - Uses Kraljic engine when available; otherwise threshold fallback (≥$100k & ≥60% risk).
+            - Fallback risk blends normalized time and inverse maturity when explicit risk missing.
             
-            - **WHY: Portfolio view**
-              - **Strategic**: partnership and risk reduction; **Leverage**: competitive sourcing; **Bottleneck**: secure supply; **Routine**: streamline.
+            ### Why it matters
+            - Portfolio view clarifies where to partner, compete, secure or streamline.
             """
         )
     engine = KraljicEngine() if KRALJIC_AVAILABLE else None
@@ -619,15 +599,14 @@ elif current_page == "TCO Analysis":
     with st.expander("Page guide: TCO methodology", expanded=False):
         st.markdown(
             """
-            - **What this page shows**: 3‑year TCO estimates per vendor (proxy) and a comparison chart.
+            ### What this page shows
+            - 3‑year TCO proxy per vendor and comparison chart.
             
-            - **HOW: Proxy TCO**
-              - `TCO (3yr) ≈ Σ(Annual Volume × Landed Cost × 3 years)` across vendor parts.
-              - Annual Volume uses demand forecast when available, else 50% utilization of installed capacity.
+            ### How it works
+            - TCO ≈ Σ(Annual Volume × Landed Cost × 3 years). Forecast used where available, else 50% capacity.
             
-            - **WHY: 3‑year horizon**
-              - Captures recurring cost impact and volatility; better signal than unit price alone.
-            - **Note**: Replace with enterprise TCO calculator when ready.
+            ### Why it matters
+            - Reflects true cost beyond unit price and supports make/buy and sourcing decisions.
             """
         )
     tco_rows = []
@@ -673,16 +652,14 @@ elif current_page == "Compliance":
     with st.expander("Page guide: compliance scoring", expanded=False):
         st.markdown(
             """
-            - **What this page shows**: Compliance score (0–100%), risk, and key statuses (UFLPA, Conflict Minerals, RoHS, REACH, Audit).
+            ### What this page shows
+            - Compliance score, risk band, and key statuses.
             
-            - **HOW: Compliance score**
-              - Five checks (UFLPA, Conflict Minerals, RoHS, REACH, Recent Audit). Score = % passed.
+            ### How it works
+            - Score = % of passed checks across UFLPA, Conflict Minerals, RoHS, REACH, Recent Audit.
             
-            - **WHY: Compliance**
-              - Reduces legal, reputational, and import risks; accelerates onboarding and audits.
-            
-            - **Risk levels**
-              - Low ≥ 80%, Medium 60–79%, High < 60% — guide remediation urgency.
+            ### Why it matters
+            - Lowers import, legal, and reputational risk; accelerates onboarding and audits.
             """
         )
     comp_rows = []
@@ -734,25 +711,46 @@ elif current_page == "Analytics":
     with st.expander("Page guide: analytics & charts", expanded=False):
         st.markdown(
             """
-            - **Trend chart (HOW)**: Final Score (%) over time (mock data in prototype). **WHY**: Momentum and stability.
-            - **Cost vs Time (HOW)**: Bubble = capacity, color = maturity. **WHY**: Visualize trade‑offs and efficient frontier.
-            - **Tips**: Hover tooltips reveal vendor‑level metrics for deeper context.
+            ### What this page shows
+            - Final Score trend over time and the relationship between cost and time.
+            
+            ### How it works
+            - Trend chart plots each selected vendor’s Final Score (%) over recent months (mock data in this prototype).
+            - Cost vs Time: bubble size represents capacity; color represents vendor maturity.
+            
+            ### Why it matters
+            - Trends reveal momentum and stability; divergences suggest emerging issues.
+            - Cost-Time trade‑off highlights efficient suppliers and where to focus improvements.
             """
         )
+    # Select vendors and metric to plot in trend
+    all_names = [a.vendor.name for a in analyses]
+    selected_names = st.multiselect("Vendors to plot", options=all_names, default=all_names)
+    metric_display = st.selectbox("Metric to plot", ["Final Score", "Cost", "Time", "Vendor Maturity", "Capacity"], index=0)
+    metric_map = {
+        "Final Score": (lambda a: a.current_score.final_score, "Final Score (%)"),
+        "Cost": (lambda a: a.current_score.total_cost_score, "Cost Score (%)"),
+        "Time": (lambda a: a.current_score.total_time_score, "Time Score (%)"),
+        "Vendor Maturity": (lambda a: a.current_score.reliability_score, "Vendor Maturity (%)"),
+        "Capacity": (lambda a: a.current_score.capacity_score, "Capacity Score (%)"),
+    }
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
     chart_data = []
-    for a in analyses[:3]:
-        base = a.current_score.final_score
+    base_fn, y_label = metric_map.get(metric_display, (lambda a: a.current_score.final_score, "Final Score (%)"))
+    for a in analyses:
+        if a.vendor.name not in selected_names:
+            continue
+        base = base_fn(a)
         for i, m in enumerate(months):
             variation = 0.02 * (i - 2.5)
             score = max(0.1, min(0.95, base + variation))
-            chart_data.append({"Vendor": a.vendor.name, "Month": m, "Final Score %": score * 100})
+            chart_data.append({"Vendor": a.vendor.name, "Month": m, y_label: score * 100})
 
     c = (
         alt.Chart(alt.Data(values=chart_data))
         .mark_line(point=True)
-        .encode(x="Month:N", y=alt.Y("Final Score %:Q", scale=alt.Scale(domain=[0, 100])), color="Vendor:N")
-        .properties(height=320, title="Vendor Final Score Trend (Mock)")
+        .encode(x="Month:N", y=alt.Y(f"{y_label}:Q", scale=alt.Scale(domain=[0, 100])), color="Vendor:N")
+        .properties(height=320, title=f"{metric_display} Trend")
     )
     st.altair_chart(c, use_container_width=True)
 
@@ -782,15 +780,14 @@ elif current_page == "Settings":
     with st.expander("Page guide: configuration & weights", expanded=False):
         st.markdown(
             """
-            - **HOW: Weights**
-              - Sliders set pillar emphasis; scoring uses normalized weights when enabled (recommended for comparability).
-              - Scale sliders resizes current values proportionally to sum to 100.
-              
-            - **WHY: Weights**
-              - Align the score with your sourcing strategy (e.g., time‑critical programs vs cost‑sensitive).
-              
-            - **Tip**
-              - Adjust weights and switch to Vendors to see immediate impact.
+            ### What this page shows
+            - Weight controls and normalization settings.
+            
+            ### How it works
+            - Sliders set pillar emphasis; Scale resizes to 100; Enforce normalizes weights during scoring.
+            
+            ### Why it matters
+            - Aligns scoring with business priorities and makes comparisons fair.
             """
         )
     st.subheader("Scoring Weights")
