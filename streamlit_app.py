@@ -5,7 +5,12 @@ import streamlit as st
 import altair as alt
 import pandas as pd
 import re
+import math
 from streamlit import column_config as cc
+
+def nobreak_vs(text: str) -> str:
+    pattern = r"(\$?\d+(?:\.\d+)?)\s*vs\s*(\$?\d+(?:\.\d+)?)"
+    return re.sub(pattern, lambda m: f"{m.group(1)}\u00A0vs\u00A0{m.group(2)}", text)
 
 # Reuse existing app logic
 from app.notion_repo import NotionRepository, NotionAPIError
@@ -126,21 +131,55 @@ with st.sidebar:
     region = st.selectbox("Region", ["", "US", "CN", "KR", "EU", "VN", "MX", "IN"], index=0)
     component_query = st.text_input("Component name contains", value="")
     st.caption("Filters vendors whose parts include components matching this text.")
-    sort_by = st.selectbox("Sort by", ["final_score", "total_cost", "total_time", "reliability", "capacity"], index=0)
+    sort_display = st.selectbox("Sort by", ["Final Score", "Total Cost", "Total Time", "Vendor Maturity", "Capacity"], index=0)
+    sort_map = {
+        "Final Score": "final_score",
+        "Total Cost": "total_cost",
+        "Total Time": "total_time",
+        "Vendor Maturity": "reliability",
+        "Capacity": "capacity",
+    }
+    sort_by = sort_map.get(sort_display, "final_score")
 
     st.subheader("Scoring Weights")
-    cost_w = st.slider("Total Cost", 0, 100, 40, key="w_cost")
-    time_w = st.slider("Total Time", 0, 100, 30, key="w_time")
-    rel_w = st.slider("Reliability", 0, 100, 20, key="w_rel")
-    cap_w = st.slider("Capacity", 0, 100, 10, key="w_cap")
+    # Initialize once, then let widgets read/write session_state
+    if "w_cost" not in st.session_state:
+        st.session_state["w_cost"] = 40
+    if "w_time" not in st.session_state:
+        st.session_state["w_time"] = 30
+    if "w_rel" not in st.session_state:
+        st.session_state["w_rel"] = 20
+    if "w_cap" not in st.session_state:
+        st.session_state["w_cap"] = 10
+
+    cost_w = st.slider("Total Cost", 0, 100, key="w_cost")
+    time_w = st.slider("Total Time", 0, 100, key="w_time")
+    rel_w = st.slider("Vendor Maturity", 0, 100, key="w_rel")
+    cap_w = st.slider("Capacity", 0, 100, key="w_cap")
     total = cost_w + time_w + rel_w + cap_w
     enforce_norm = st.checkbox("Enforce 100% (auto-normalize for scoring)", value=True)
-    if st.button("Scale sliders to 100%"):
-        s = total if total > 0 else 1
-        st.session_state["w_cost"] = int(round(cost_w * 100 / s))
-        st.session_state["w_time"] = int(round(time_w * 100 / s))
-        st.session_state["w_rel"] = int(round(rel_w * 100 / s))
-        st.session_state["w_cap"] = int(round(cap_w * 100 / s))
+
+    def _scale_weights():
+        vals = [
+            int(st.session_state.get("w_cost", 0)),
+            int(st.session_state.get("w_time", 0)),
+            int(st.session_state.get("w_rel", 0)),
+            int(st.session_state.get("w_cap", 0)),
+        ]
+        s = sum(vals)
+        if s <= 0:
+            scaled = [40, 30, 20, 10]
+        else:
+            raw = [v * 100.0 / s for v in vals]
+            floors = [int(math.floor(x)) for x in raw]
+            remainder = 100 - sum(floors)
+            fracs = [(i, raw[i] - floors[i]) for i in range(len(vals))]
+            fracs.sort(key=lambda t: t[1], reverse=True)
+            for i in range(remainder):
+                floors[fracs[i % len(floors)][0]] += 1
+            scaled = floors
+        st.session_state["w_cost"], st.session_state["w_time"], st.session_state["w_rel"], st.session_state["w_cap"] = scaled
+    st.button("Scale sliders to 100%", on_click=_scale_weights)
 
     # Build weights for scoring (normalized if requested or total is zero)
     if total == 0:
@@ -218,14 +257,13 @@ if current_page == "Vendors":
             clean = " ".join(b.replace("\n", " ").split())
             # normalize 'vs' spacing and prevent awkward breaks
             clean = re.sub(r"v\s*s", "vs", clean, flags=re.IGNORECASE)
-            clean = re.sub(r"(\$?\d+(?:\.\d+)?)\s*vs\s*(\$?\d+(?:\.\d+)?)", r"\1 a0vs a0\2", clean)
-            clean = re.sub(r"(\d)vs(\d)", r"\1 a0vs a0\2", clean)
+            clean = nobreak_vs(clean)
             st.markdown(f"- {clean}")
     else:
         st.write("No insights available.")
     st.subheader("Recommendation")
     rec = " ".join(summary.get("recommendation", "").replace("\n", " ").split())
-    rec = re.sub(r"(\$?\d+(?:\.\d+)?)\s*vs\s*(\$?\d+(?:\.\d+)?)", r"\1 a0vs a0\2", rec)
+    rec = nobreak_vs(rec)
     st.markdown(rec)
 
     # KPI metrics row
@@ -262,7 +300,7 @@ if current_page == "Vendors":
                     "Final Score (%)": round(a.current_score.final_score * 100, 1),
                     "Cost (%)": round(a.current_score.total_cost_score * 100, 1),
                     "Time (%)": round(a.current_score.total_time_score * 100, 1),
-                    "Reliability (%)": round(a.current_score.reliability_score * 100, 1),
+                    "Vendor Maturity (%)": round(a.current_score.reliability_score * 100, 1),
                     "Capacity (%)": round(a.current_score.capacity_score * 100, 1),
                     "Avg. Landed Cost": round(a.avg_landed_cost, 2),
                     "Avg. Total Time (days)": round(a.avg_total_time, 1),
@@ -281,7 +319,7 @@ if current_page == "Vendors":
                 "Final Score (%)": cc.NumberColumn(format="%.1f%%"),
                 "Cost (%)": cc.NumberColumn(format="%.1f%%"),
                 "Time (%)": cc.NumberColumn(format="%.1f%%"),
-                "Reliability (%)": cc.NumberColumn(format="%.1f%%"),
+                "Vendor Maturity (%)": cc.NumberColumn(format="%.1f%%"),
                 "Capacity (%)": cc.NumberColumn(format="%.1f%%"),
                 "Avg. Landed Cost": cc.NumberColumn(format="$%.2f"),
                 "Avg. Total Time (days)": cc.NumberColumn(format="%.1f"),
@@ -316,7 +354,7 @@ if current_page == "Vendors":
                     "Final": round(selected.current_score.final_score * 100, 1),
                     "Cost": round(selected.current_score.total_cost_score * 100, 1),
                     "Time": round(selected.current_score.total_time_score * 100, 1),
-                    "Reliability": round(selected.current_score.reliability_score * 100, 1),
+                    "Vendor Maturity": round(selected.current_score.reliability_score * 100, 1),
                     "Capacity": round(selected.current_score.capacity_score * 100, 1),
                 }
             )
