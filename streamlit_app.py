@@ -274,17 +274,88 @@ if current_page == "Vendors":
         st.markdown(
             """
             ### What this page shows
-            - Ranked vendor list, pillar scores, costs/times, capacity, risk flags, and advanced metrics.
+            - Comprehensive vendor ranking with enhanced scoring across cost, time, vendor maturity, and capacity pillars
+            - Advanced risk assessment including compliance, operational, and supply chain risks
+            - Transparent calculation methodology using 31+ vendor properties when available
             
-            ### How it works
-            - Final Score = weighted sum of pillar scores (0–100%). Weights set in sidebar and normalized (when enabled).
-            - Per pillar: winsorize outliers, min–max normalize across vendors; invert Cost/Time so lower is better.
-            - Risk flags: staleness, delay risk thresholds, capacity shortfall; cost spikes when history exists.
-            - Advanced metrics: percentile and z‑score for cost/time; composite risk index.
+            ### How Enhanced Scoring Works
             
-            ### Why it matters
-            - Holistic view blends cost, speed, reliability (maturity) and capacity.
-            - Transparent scoring and risk surfacing support decisions and stakeholder trust.
+            **Final Score Calculation:**
+            `Final Score = (Cost Score × Cost Weight) + (Time Score × Time Weight) + (Vendor Maturity × Maturity Weight) + (Capacity Score × Capacity Weight)`
+            - Weights configurable in sidebar, normalized to 100% for fair comparison
+            - All pillars scored 0-100% using min-max normalization across vendor portfolio
+            
+            **Enhanced Vendor Maturity (5-Dimensional Assessment):**
+            When comprehensive vendor data available, uses sophisticated calculation:
+            `Vendor Maturity = Operational(35%) + Financial(25%) + Innovation(20%) + Business(15%) + Partnership(5%)`
+            
+            **Dimensional Breakdown:**
+            - **Operational Excellence (35%)**: OTIF% × 40% + Lead Time Consistency × 30% + Quality Score × 30%
+            - **Financial Maturity (25%)**: Financial Stability × 60% + Debt Management × 40%
+            - **Innovation & Technology (20%)**: Digital Transformation × 40% + Tech Readiness × 30% + Patent Strength × 30%
+            - **Business Maturity (15%)**: Company Age Factor × 60% + Company Size Factor × 40%
+            - **Partnership & Communication (5%)**: Communication Quality × 70% + Continuous Improvement × 30%
+            
+            **Fallback for Basic Vendors:**
+            When enhanced data unavailable: Region reputation + Geopolitical alignment + Data freshness + Shipping risk
+            
+            ### Enhanced Risk Detection System
+            
+            **Compliance Risks (High Priority):**
+            - UFLPA non-compliance: severity High (forced labor import risk)
+            - Conflict minerals non-compliance: severity High (ESG/Section 1502 exposure)
+            - Audit status:
+              - No audit on record: severity Medium
+              - >18 months since last audit: severity Low
+              - >2 years since last audit: severity Medium
+              - >3 years since last audit: severity High
+            - ISO certification deficiency (expected by size: Enterprise 5+, Large 4+, Medium 2+, Small 1+):
+              - 0 certifications: severity Medium
+              - Below expected (but >0): severity Low
+            
+            **Operational Risks (Balanced Thresholds):**
+            - Data staleness: flag at ≥120 days; Medium = 120–180 days, High = >180 days
+            - Capacity shortfall: High <2K units, Medium <5K units
+            - Low vendor maturity: High <25%, Medium <40%
+            
+            **Supply Chain Risks:**
+            - Shipping delays:
+              - Ocean: flag at >21 days; High = >35 days
+              - Air: flag at >10 days; High = >14 days
+            - Cost spikes: High >25% MoM, Medium >15% MoM
+            - Part-level compliance:
+              - RoHS: High <80% parts compliant, Medium <90%
+              - REACH: High <70% parts compliant, Medium <80%
+            
+            ### Why Enhanced Methodology Matters
+            - **Comprehensive Assessment**: Uses all available vendor data (31+ properties) for accurate evaluation
+            - **Realistic Risk Distribution**: Balanced thresholds prevent all vendors being flagged as high risk
+            - **Compliance Integration**: Proactive compliance tracking reduces legal and reputational exposure
+            - **Archetype Alignment**: Strategic suppliers typically score 85-95%, routine suppliers 50-75%
+            
+            ### Detailed Metrics Reference
+            
+            **Enhanced Vendor Properties (when available):**
+            - **Operational**: OTIF%, PPM defects, lead time consistency, communication quality
+            - **Financial**: Financial stability, debt-to-equity ratio, credit rating, payment terms
+            - **Innovation**: R&D investment %, technology readiness level, digital transformation, patents
+            - **Business**: Company age, size, employee count, manufacturing sites
+            - **Compliance**: UFLPA/conflict minerals status, audit dates, ISO certifications
+            
+            **Calculation Formulas:**
+            - **Cost**: `total_landed_cost = unit_price + freight_cost + (unit_price × tariff_rate/100)`
+            - **Time**: `total_time_days = lead_time_weeks × 7 + transit_days`
+            - **Quality Score**: `1 - (PPM_defects / 1000)`, capped at 1000 PPM
+            - **Debt Management**: Optimized around 1.0 D/E ratio, scaled 0-1
+            - **Company Age Factor**: `min(1.0, company_age / 25)` for 25+ year maturity
+            
+            **Processing Pipeline:**
+            1. Collect vendor/part data from Notion with enhanced properties
+            2. Calculate dimensional scores using actual vendor metrics
+            3. Winsorize outliers and normalize 0-100% across portfolio
+            4. Apply weights and generate final scores
+            5. Assess compliance and operational risks with balanced thresholds
+            6. Rank vendors and provide transparent score breakdown
             """
         )
     # Executive summary
@@ -314,7 +385,7 @@ if current_page == "Vendors":
         total_capacity = sum(a.total_monthly_capacity for a in analyses)
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Total Vendors", f"{total_vendors}")
-        m2.metric("High Risk Vendors", f"{high_risk_count}")
+        m2.metric("Operational High Risk Vendors", f"{high_risk_count}")
         m3.metric("Avg Final Score", f"{avg_score*100:.1f}%")
         m4.metric("Total Capacity", f"{total_capacity:,}")
 
@@ -481,6 +552,11 @@ elif current_page == "Components":
             
             ### Why it matters
             - Identifies cost/time hotspots and capacity constraints at part level.
+            
+            ### Metrics Reference
+            - Per part inputs: `component_name`, `vendor`, `odm_destination`, `odm_region`, `unit_price`, `freight_cost`, `tariff_rate_pct`, `lead_time_weeks`, `transit_days`, `shipping_mode`, `monthly_capacity`, `last_verified`
+            - Derived per part: `total_landed_cost`, `total_time_days`
+            - Filters: `component_name` contains filter narrows parts and vendors.
             """
         )
     # Flatten all parts across the (filtered) vendors
@@ -528,14 +604,32 @@ elif current_page == "Kraljic Matrix":
         st.markdown(
             """
             ### What this page shows
-            - Supplier portfolio by Annual Spend vs Supply Risk and categories.
+            - Supplier portfolio plotted by Annual Spend (impact on profit) vs Supply Risk.
+            - Each vendor is categorized into a Kraljic quadrant.
+            
+            ### What is the Kraljic Matrix?
+            The Kraljic Matrix segments suppliers into four categories to tailor sourcing strategies:
+            - **Strategic (High Spend, High Risk)**: Critical to business continuity; form partnerships and ensure dual sourcing.
+            - **Leverage (High Spend, Low Risk)**: Significant spend in competitive markets; leverage volume and competition.
+            - **Bottleneck (Low Spend, High Risk)**: Low spend but constrained supply; secure supply, carry safety stock.
+            - **Routine (Low Spend, Low Risk)**: Standardized items; streamline, automate, reduce transaction costs.
             
             ### How it works
-            - Uses Kraljic engine when available; otherwise threshold fallback (≥$100k & ≥60% risk).
-            - Fallback risk blends normalized time and inverse maturity when explicit risk missing.
+            - Uses Kraljic engine when available; otherwise applies a threshold fallback.
+            - Fallback thresholds (configurable in code):
+              - Annual Spend threshold: ≥ $100k
+              - Supply Risk threshold: ≥ 60%
+            - Fallback risk proxy blends normalized Total Time (longer = riskier) and inverse Vendor Maturity.
             
             ### Why it matters
-            - Portfolio view clarifies where to partner, compete, secure or streamline.
+            - Portfolio view clarifies where to partner, compete, secure, or streamline.
+            
+            ### Metrics Reference
+            - Annual Spend per vendor: `Σ(annual_volume × total_landed_cost)` across parts
+              - `annual_volume` = forecast or `(monthly_capacity × 12 × 0.5)` when forecast missing
+            - Supply Risk (fallback): `min(1.0, 0.6 × time_norm + 0.4 × (1 - maturity))`
+            - Category thresholds:
+              - Strategic (≥$100k & ≥60%), Leverage (≥$100k & <60%), Bottleneck (<$100k & ≥60%), Routine (<$100k & <60%)
             """
         )
     engine = KraljicEngine() if KRALJIC_AVAILABLE else None
@@ -607,6 +701,11 @@ elif current_page == "TCO Analysis":
             
             ### Why it matters
             - Reflects true cost beyond unit price and supports make/buy and sourcing decisions.
+            
+            ### Metrics Reference
+            - Per part inputs: `unit_price`, `freight_cost`, `tariff_rate_pct`, `lead_time_weeks`, `transit_days`, `monthly_capacity`, `annual_demand_forecast`
+            - Derived per part: `total_landed_cost`, `annual_volume`
+            - Aggregation: `Total 3-Year TCO = Σ(annual_volume × total_landed_cost × 3)` per vendor
             """
         )
     tco_rows = []
@@ -649,17 +748,37 @@ elif current_page == "TCO Analysis":
         )
 elif current_page == "Compliance":
     st.header("Compliance & Certifications")
-    with st.expander("Page guide: compliance scoring", expanded=False):
+    with st.expander("Page guide: comprehensive compliance assessment", expanded=False):
         st.markdown(
             """
             ### What this page shows
-            - Compliance score, risk band, and key statuses.
+            - Vendor-level compliance status and a composite Compliance Score.
+            - Part-level RoHS/REACH compliance indicators.
             
-            ### How it works
-            - Score = % of passed checks across UFLPA, Conflict Minerals, RoHS, REACH, Recent Audit.
+            ### How the Compliance Score is computed
+            - 5 equally weighted checks: UFLPA, Conflict Minerals, RoHS, REACH, Audit presence.
+            - Score = (# of checks passed ÷ 5) × 100.
+            - Risk Level: High <60%, Medium 60–79%, Low ≥80%.
             
-            ### Why it matters
-            - Lowers import, legal, and reputational risk; accelerates onboarding and audits.
+            ### Compliance Thresholds & Rules
+            - UFLPA: Non-compliant → High severity risk flag.
+            - Conflict Minerals: Non-compliant → High severity risk flag.
+            - Audit status:
+              - No audit on record → Medium severity
+              - >18 months since last audit → Low severity
+              - >2 years since last audit → Medium severity
+              - >3 years since last audit → High severity
+            - ISO certifications expected by company size:
+              - Enterprise 5+, Large 4+, Medium 2+, Small 1+
+              - 0 certifications → Medium severity; below expected (>0) → Low severity
+            - Part-level compliance thresholds:
+              - RoHS: High <80% parts compliant, Medium <90%
+              - REACH: High <70% parts compliant, Medium <80%
+            
+            ### Data Sources & Validation
+            - Vendor properties include compliance flags and ISO certificates.
+            - Parts include RoHS/REACH flags with realistic regional patterns.
+            - The risk engine integrates these checks into vendor risk flags.
             """
         )
     comp_rows = []
@@ -692,7 +811,7 @@ elif current_page == "Compliance":
         dfc = pd.DataFrame(comp_rows)
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Avg Compliance", f"{dfc['Compliance Score'].mean():.1f}%")
-        c2.metric("High Risk Vendors", int((dfc['Risk Level'] == 'High').sum()))
+        c2.metric("Compliance High Risk Vendors", int((dfc['Risk Level'] == 'High').sum()))
         c3.metric("Medium Risk Vendors", int((dfc['Risk Level'] == 'Medium').sum()))
         c4.metric("Low Risk Vendors", int((dfc['Risk Level'] == 'Low').sum()))
         st.divider()
@@ -715,12 +834,18 @@ elif current_page == "Analytics":
             - Final Score trend over time and the relationship between cost and time.
             
             ### How it works
-            - Trend chart plots each selected vendor’s Final Score (%) over recent months (mock data in this prototype).
+            - Trend chart: plots selected vendors’ chosen metric (Final, Cost, Time, Maturity, Capacity) over months (mock in prototype).
             - Cost vs Time: bubble size represents capacity; color represents vendor maturity.
             
             ### Why it matters
             - Trends reveal momentum and stability; divergences suggest emerging issues.
-            - Cost-Time trade‑off highlights efficient suppliers and where to focus improvements.
+            - Cost‑Time trade‑off highlights efficient suppliers and where to focus improvements.
+            
+            ### Metrics Reference
+            - Trend inputs by metric:
+              - Final Score: pillar scores + weights
+              - Cost/Time/Maturity/Capacity: vendor‑level pillar scores (0–1) × 100 for display
+            - Scatter inputs: `avg_landed_cost`, `avg_total_time`, `total_monthly_capacity`, `reliability_score`
             """
         )
     # Select vendors and metric to plot in trend

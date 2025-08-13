@@ -209,11 +209,12 @@ class NotionRepository:
         return vendors
     
     def _parse_vendor(self, page: Dict[str, Any]) -> Optional[Vendor]:
-        """Parse Notion page data into Vendor object."""
+        """Parse Notion page data into Vendor object with enhanced properties."""
         try:
             props = page["properties"]
             
-            return Vendor(
+            # Create basic vendor object
+            vendor = Vendor(
                 id=page["id"],
                 name=self._get_title(props.get("Name")),
                 region=self._get_select(props.get("Region")),
@@ -222,6 +223,64 @@ class NotionRepository:
                 last_verified=self._get_date(props.get("Last Verified")),
                 created_time=self._get_created_time(props.get("Created Time"))
             )
+            
+            # Add enhanced properties for scoring engine to use
+            enhanced_data = {}
+            
+            # Core business metrics
+            enhanced_data["vendor_maturity_score"] = self._get_number(props.get("Vendor Maturity Score"))
+            enhanced_data["annual_revenue"] = self._get_number(props.get("Annual Revenue (USD)"))
+            enhanced_data["employee_count"] = self._get_number(props.get("Employee Count"))
+            enhanced_data["founded_year"] = self._get_number(props.get("Founded Year"))
+            enhanced_data["company_size"] = self._get_select(props.get("Company Size"))
+            enhanced_data["market_presence"] = self._get_select(props.get("Market Presence"))
+            
+            # Financial metrics
+            enhanced_data["financial_stability_score"] = self._get_number(props.get("Financial Stability Score"))
+            enhanced_data["debt_to_equity_ratio"] = self._get_number(props.get("Debt to Equity Ratio"))
+            enhanced_data["credit_rating"] = self._get_select(props.get("Credit Rating"))
+            enhanced_data["payment_terms"] = self._get_number(props.get("Payment Terms (days)"))
+            
+            # Operational metrics
+            enhanced_data["otif_percent"] = self._get_number(props.get("OTIF %"))
+            enhanced_data["ppm_defects"] = self._get_number(props.get("PPM Defects"))
+            enhanced_data["lead_time_consistency"] = self._get_number(props.get("Lead Time Consistency %"))
+            enhanced_data["response_time"] = self._get_number(props.get("Response Time (hrs)"))
+            enhanced_data["communication_quality"] = self._get_number(props.get("Communication Quality"))
+            enhanced_data["manufacturing_sites"] = self._get_number(props.get("Manufacturing Sites"))
+            
+            # Risk metrics
+            enhanced_data["country_risk_score"] = self._get_number(props.get("Country Risk Score"))
+            enhanced_data["currency_stability_risk"] = self._get_number(props.get("Currency Stability Risk"))
+            enhanced_data["trade_relations_risk"] = self._get_number(props.get("Trade Relations Risk"))
+            enhanced_data["regulatory_compliance_risk"] = self._get_number(props.get("Regulatory Compliance Risk"))
+            enhanced_data["supply_chain_resilience"] = self._get_number(props.get("Supply Chain Resilience"))
+            
+            # Innovation metrics
+            enhanced_data["rd_investment_percent"] = self._get_number(props.get("R&D Investment %"))
+            enhanced_data["technology_readiness_level"] = self._get_number(props.get("Technology Readiness Level"))
+            enhanced_data["digital_transformation_score"] = self._get_number(props.get("Digital Transformation Score"))
+            enhanced_data["patent_portfolio_strength"] = self._get_number(props.get("Patent Portfolio Strength"))
+            enhanced_data["innovation_partnership_potential"] = self._get_number(props.get("Innovation Partnership Potential"))
+            enhanced_data["continuous_improvement_score"] = self._get_number(props.get("Continuous Improvement Score"))
+            
+            # Compliance & Certifications
+            enhanced_data["uflpa_compliant"] = self._get_checkbox(props.get("UFLPA Compliant"))
+            enhanced_data["conflict_minerals_compliant"] = self._get_checkbox(props.get("Conflict Minerals Compliant"))
+            enhanced_data["last_audit_date"] = self._get_date(props.get("Last Audit Date"))
+            enhanced_data["iso_certifications"] = self._get_multi_select(props.get("ISO Certifications"))
+            
+            # Store enhanced data on vendor object for scoring engine access
+            vendor._enhanced_data = enhanced_data
+            
+            # Also set compliance data as direct attributes for Streamlit app compatibility
+            vendor.uflpa_compliant = enhanced_data.get("uflpa_compliant", False)
+            vendor.conflict_minerals_compliant = enhanced_data.get("conflict_minerals_compliant", False)
+            vendor.last_audit_date = enhanced_data.get("last_audit_date")
+            vendor.iso_certifications = enhanced_data.get("iso_certifications", [])
+            
+            return vendor
+            
         except Exception as e:
             logger.error(f"Error parsing vendor: {e}")
             return None
@@ -293,6 +352,8 @@ class NotionRepository:
                 transit_days=int(self._get_number(props.get("Transit Days")) or 0),
                 shipping_mode=self._get_select(props.get("Shipping Mode")),
                 monthly_capacity=int(self._get_number(props.get("Monthly Capacity")) or 0),
+                rohs_compliant=self._get_checkbox(props.get("RoHS Compliant")),
+                reach_compliant=self._get_checkbox(props.get("REACH Compliant")),
                 last_verified=self._get_date(props.get("Last Verified")),
                 notes=self._get_rich_text(props.get("Notes")),
                 timestamp=self._get_created_time(props.get("Created Time"))
@@ -345,6 +406,18 @@ class NotionRepository:
             return None
         time_str = prop.get("created_time")
         return datetime.fromisoformat(time_str.replace('Z', '+00:00')) if time_str else None
+    
+    def _get_checkbox(self, prop: Optional[Dict]) -> bool:
+        """Extract checkbox value from Notion property."""
+        if not prop:
+            return False
+        return prop.get("checkbox", False)
+    
+    def _get_multi_select(self, prop: Optional[Dict]) -> List[str]:
+        """Extract multi-select values from Notion property."""
+        if not prop or not prop.get("multi_select"):
+            return []
+        return [item["name"] for item in prop["multi_select"]]
     
     def _get_relation_id(self, prop: Optional[Dict]) -> str:
         """Extract first relation ID from Notion property."""

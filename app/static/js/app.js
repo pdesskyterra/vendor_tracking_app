@@ -65,6 +65,22 @@ class VendorApp {
             }
         });
 
+        // Calculation Modal
+        document.getElementById('show-calculation-modal').addEventListener('click', () => {
+            this.showCalculationModal();
+        });
+
+        document.getElementById('close-calculation-modal').addEventListener('click', () => {
+            this.closeCalculationModal();
+        });
+
+        // Click outside calculation modal to close
+        document.getElementById('calculation-modal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                this.closeCalculationModal();
+            }
+        });
+
         // Settings
         document.getElementById('update-weights').addEventListener('click', () => {
             this.updateWeights();
@@ -195,9 +211,16 @@ class VendorApp {
                 <td>${vendor.metrics.part_count}</td>
                 <td>
                     <div class="flex flex-wrap gap-1">
-                        ${vendor.risk_flags.map(flag => 
-                            `<span class="risk-badge ${flag.severity}">${flag.type.replace('_', ' ')}</span>`
-                        ).join('')}
+                        ${vendor.risk_flags
+                            .filter(flag => flag.severity === 'high')
+                            .map(flag => `<span class=\"risk-badge ${flag.severity}\" title=\"${flag.description}\">${flag.type.replace('_', ' ')}</span>`)
+                            .join('')}
+                        ${(() => {
+                            const med = vendor.risk_flags.filter(f => f.severity === 'medium').length;
+                            const low = vendor.risk_flags.filter(f => f.severity === 'low').length;
+                            const total = med + low;
+                            return total > 0 ? `<span class=\"risk-badge summary\" title=\"${med} medium, ${low} low\">+${total} more</span>` : '';
+                        })()}
                     </div>
                 </td>
                 <td>
@@ -283,12 +306,35 @@ class VendorApp {
         riskContainer.innerHTML = '';
         
         if (data.risk_flags.length > 0) {
-            data.risk_flags.forEach(flag => {
-                const badge = document.createElement('span');
-                badge.className = `risk-badge ${flag.severity}`;
-                badge.textContent = flag.description;
-                riskContainer.appendChild(badge);
-            });
+            // Show high severity by default
+            const highs = data.risk_flags.filter(f => f.severity === 'high');
+            const nonHighs = data.risk_flags.filter(f => f.severity !== 'high');
+            const addBadge = (text, cls = '') => {
+                const b = document.createElement('span');
+                b.className = `risk-badge ${cls}`.trim();
+                b.textContent = text;
+                riskContainer.appendChild(b);
+            };
+            highs.forEach(flag => addBadge(flag.description, flag.severity));
+            if (nonHighs.length > 0) {
+                const toggle = document.createElement('button');
+                toggle.className = 'btn btn-secondary btn-xs';
+                toggle.textContent = `Show ${nonHighs.length} more`;
+                let expanded = false;
+                toggle.addEventListener('click', () => {
+                    expanded = !expanded;
+                    if (expanded) {
+                        nonHighs.forEach(flag => addBadge(flag.description, flag.severity));
+                        toggle.textContent = 'Hide extra';
+                    } else {
+                        // Re-render only highs and the toggle
+                        riskContainer.innerHTML = '';
+                        highs.forEach(flag => addBadge(flag.description, flag.severity));
+                        riskContainer.appendChild(toggle);
+                    }
+                });
+                riskContainer.appendChild(toggle);
+            }
         } else {
             riskContainer.innerHTML = '<p class="text-success">No risk flags detected</p>';
         }
@@ -408,6 +454,14 @@ class VendorApp {
             this.charts.vendorTrend.destroy();
             delete this.charts.vendorTrend;
         }
+    }
+
+    showCalculationModal() {
+        document.getElementById('calculation-modal').style.display = 'flex';
+    }
+
+    closeCalculationModal() {
+        document.getElementById('calculation-modal').style.display = 'none';
     }
 
     async applyFilters() {

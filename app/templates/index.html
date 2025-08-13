@@ -67,7 +67,7 @@
                                 <option value="final_score">Final Score</option>
                                 <option value="total_cost">Total Cost</option>
                                 <option value="total_time">Total Time</option>
-                                <option value="reliability">Reliability</option>
+                                <option value="reliability">Vendor Maturity</option>
                                 <option value="capacity">Capacity</option>
                             </select>
                         </div>
@@ -78,25 +78,48 @@
                     <div class="scoring-interface">
                         <div class="scoring-panel">
                             <h3><i class="fas fa-sliders-h"></i> Vendor Scoring Interface</h3>
+                            <div class="scoring-help">
+                                <p><i class="fas fa-info-circle"></i> Adjust weights to prioritize different aspects of vendor performance. These weights are used in the final scoring algorithm along with vendor maturity calculations.</p>
+                            </div>
                             <div class="scoring-controls">
                                 <div class="weight-sliders-grid">
                                     <div class="weight-control">
-                                        <label for="main-cost-weight">Total Cost</label>
+                                        <label for="main-cost-weight">
+                                            Total Cost
+                                            <span class="weight-tooltip" data-tooltip="Includes unit price, landing costs, tariffs, and shipping. Higher weight prioritizes cost-effectiveness in vendor selection.">
+                                                <i class="fas fa-question-circle"></i>
+                                            </span>
+                                        </label>
                                         <input type="range" id="main-cost-weight" min="0" max="100" value="40" class="weight-slider">
                                         <span class="weight-display" id="main-cost-weight-value">40%</span>
                                     </div>
                                     <div class="weight-control">
-                                        <label for="main-time-weight">Total Time</label>
+                                        <label for="main-time-weight">
+                                            Total Time
+                                            <span class="weight-tooltip" data-tooltip="Combines lead time and transit time. Higher weight favors vendors with faster delivery capabilities and shorter production cycles.">
+                                                <i class="fas fa-question-circle"></i>
+                                            </span>
+                                        </label>
                                         <input type="range" id="main-time-weight" min="0" max="100" value="30" class="weight-slider">
                                         <span class="weight-display" id="main-time-weight-value">30%</span>
                                     </div>
                                     <div class="weight-control">
-                                        <label for="main-reliability-weight">Reliability</label>
+                                        <label for="main-reliability-weight">
+                                            Vendor Maturity
+                                            <span class="weight-tooltip" data-tooltip="5-dimensional assessment: Operational (35%), Financial (25%), Innovation (20%), Business (15%), Partnership (5%). Higher weight prioritizes overall vendor capability and stability.">
+                                                <i class="fas fa-question-circle"></i>
+                                            </span>
+                                        </label>
                                         <input type="range" id="main-reliability-weight" min="0" max="100" value="20" class="weight-slider">
                                         <span class="weight-display" id="main-reliability-weight-value">20%</span>
                                     </div>
                                     <div class="weight-control">
-                                        <label for="main-capacity-weight">Capacity</label>
+                                        <label for="main-capacity-weight">
+                                            Capacity
+                                            <span class="weight-tooltip" data-tooltip="Manufacturing capacity and scalability. Higher weight favors vendors who can handle large orders and volume fluctuations effectively.">
+                                                <i class="fas fa-question-circle"></i>
+                                            </span>
+                                        </label>
                                         <input type="range" id="main-capacity-weight" min="0" max="100" value="10" class="weight-slider">
                                         <span class="weight-display" id="main-capacity-weight-value">10%</span>
                                     </div>
@@ -116,6 +139,77 @@
                             <p>Loading insights...</p>
                         </div>
                     </div>
+
+                    <!-- Methodology Guide -->
+                    <div class="methodology-guide">
+                        <h3><i class="fas fa-calculator"></i> How Vendor Maturity is Calculated</h3>
+                        <div class="methodology-content">
+                            <p class="methodology-intro">
+                                Vendor maturity scores are calculated using a comprehensive 5-dimensional assessment model that evaluates suppliers across critical business areas.
+                            </p>
+                            
+                            <div class="calculation-formula">
+                                <h4>Overall Formula:</h4>
+                                <div class="formula-display">
+                                    <strong>Vendor Maturity = </strong>
+                                    <span class="formula-term">Operational (35%)</span> + 
+                                    <span class="formula-term">Financial (25%)</span> + 
+                                    <span class="formula-term">Innovation (20%)</span> + 
+                                    <span class="formula-term">Business (15%)</span> + 
+                                    <span class="formula-term">Partnership (5%)</span>
+                                </div>
+                            </div>
+
+                            <div class="dimensions-breakdown">
+                                <div class="dimension-item">
+                                    <h5><i class="fas fa-cogs"></i> Operational Excellence (35%)</h5>
+                                    <p><strong>OTIF Performance × 40%</strong> + <strong>Lead Time Consistency × 30%</strong> + <strong>Quality (1 - PPM defects/1000) × 30%</strong></p>
+                                    <small>Measures delivery reliability, schedule adherence, and product quality consistency.</small>
+                                </div>
+
+                                <div class="dimension-item">
+                                    <h5><i class="fas fa-chart-line"></i> Financial Maturity (25%)</h5>
+                                    <p><strong>Financial Stability × 60%</strong> + <strong>Debt Management × 40%</strong></p>
+                                    <small>Evaluates financial health, creditworthiness, and payment term flexibility.</small>
+                                </div>
+
+                                <div class="dimension-item">
+                                    <h5><i class="fas fa-lightbulb"></i> Innovation & Technology (20%)</h5>
+                                    <p><strong>Digital Transformation × 40%</strong> + <strong>Technology Readiness × 30%</strong> + <strong>Patent Strength × 30%</strong></p>
+                                    <small>Assesses R&D investment, technological capabilities, and innovation potential.</small>
+                                </div>
+
+                                <div class="dimension-item">
+                                    <h5><i class="fas fa-building"></i> Business Maturity (15%)</h5>
+                                    <p><strong>Company Age Factor × 60%</strong> + <strong>Company Size Factor × 40%</strong></p>
+                                    <small>Considers organizational experience, market presence, and operational scale.</small>
+                                </div>
+
+                                <div class="dimension-item">
+                                    <h5><i class="fas fa-handshake"></i> Partnership & Communication (5%)</h5>
+                                    <p><strong>Communication Quality × 70%</strong> + <strong>Continuous Improvement × 30%</strong></p>
+                                    <small>Evaluates responsiveness, collaboration effectiveness, and improvement initiatives.</small>
+                                </div>
+                            </div>
+
+                            <div class="additional-metrics">
+                                <h4>Additional Derived Metrics:</h4>
+                                <div class="derived-metric">
+                                    <strong>Reliability Score:</strong> Calculated from OTIF (40%) + Quality (30%) + Consistency (20%) + Communication (10%)
+                                </div>
+                                <div class="derived-metric">
+                                    <strong>Regional Factors:</strong> Country risk, currency stability, and trade relations adjust base scores
+                                </div>
+                                <div class="derived-metric">
+                                    <strong>Archetype Impact:</strong> Strategic suppliers typically score 85-95%, Leverage 70-85%, Bottleneck 60-80%, Routine 50-75%
+                                </div>
+                            </div>
+
+                            <button id="show-calculation-modal" class="btn btn-secondary">
+                                <i class="fas fa-info-circle"></i> View Detailed Examples
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Vendors Table -->
@@ -129,7 +223,7 @@
                                 <th>Final Score</th>
                                 <th>Cost Score</th>
                                 <th>Time Score</th>
-                                <th>Reliability</th>
+                                <th>Vendor Maturity</th>
                                 <th>Capacity</th>
                                 <th>Avg. Cost</th>
                                 <th>Parts</th>
@@ -165,7 +259,7 @@
                             <div class="kpi-value" id="total-vendors">--</div>
                         </div>
                         <div class="kpi-card">
-                            <h4>High Risk Vendors</h4>
+                            <h4>Operational High Risk Vendors</h4>
                             <div class="kpi-value" id="high-risk-vendors">--</div>
                         </div>
                         <div class="kpi-card">
@@ -183,8 +277,8 @@
             <!-- Settings View -->
             <div id="settings-view" class="view-container" style="display: none;">
                 <div class="settings-panel">
-                    <h2>Scoring Weights</h2>
-                    <p>Adjust the relative importance of each scoring pillar:</p>
+                    <h2>Scoring Weights & Calculation Methodology</h2>
+                    <p>Adjust the relative importance of each scoring pillar and understand how vendor evaluations work:</p>
                     
                     <div class="weight-controls">
                         <div class="weight-slider">
@@ -196,7 +290,7 @@
                             <input type="range" id="time-weight" min="0" max="100" value="30" class="slider">
                         </div>
                         <div class="weight-slider">
-                            <label for="reliability-weight">Reliability (<span id="reliability-weight-value">20</span>%)</label>
+                            <label for="reliability-weight">Vendor Maturity (<span id="reliability-weight-value">20</span>%)</label>
                             <input type="range" id="reliability-weight" min="0" max="100" value="20" class="slider">
                         </div>
                         <div class="weight-slider">
@@ -212,6 +306,141 @@
                     <div class="settings-actions">
                         <button id="update-weights" class="btn btn-primary">Update Weights & Recompute</button>
                         <button id="reset-weights" class="btn btn-secondary">Reset to Defaults</button>
+                    </div>
+
+                    <!-- Detailed Calculation Methodology -->
+                    <div class="calculation-methodology">
+                        <h3><i class="fas fa-calculator"></i> Detailed Calculation Methodology</h3>
+                        
+                        <div class="methodology-section">
+                            <h4>1. Vendor Maturity Score Calculation</h4>
+                            <div class="methodology-detail">
+                                <p>Vendor maturity is calculated using a comprehensive 5-dimensional model:</p>
+                                <div class="formula-box">
+                                    <strong>Vendor Maturity = Operational (35%) + Financial (25%) + Innovation (20%) + Business (15%) + Partnership (5%)</strong>
+                                </div>
+                                
+                                <div class="dimension-details">
+                                    <div class="dimension-detail">
+                                        <h5>Operational Excellence (35% weight)</h5>
+                                        <ul>
+                                            <li><strong>OTIF Performance (40%):</strong> On-time, in-full delivery percentage</li>
+                                            <li><strong>Lead Time Consistency (30%):</strong> Predictability of delivery schedules</li>
+                                            <li><strong>Quality Score (30%):</strong> (1 - PPM defects/1000) capped at 1000 PPM</li>
+                                        </ul>
+                                        <p class="calculation-example">Example: OTIF 96% × 40% + Consistency 94% × 30% + Quality 97.5% × 30% = 95.9%</p>
+                                    </div>
+
+                                    <div class="dimension-detail">
+                                        <h5>Financial Maturity (25% weight)</h5>
+                                        <ul>
+                                            <li><strong>Financial Stability (60%):</strong> Overall financial health score</li>
+                                            <li><strong>Debt Management (40%):</strong> Optimal D/E ratio around 1.0</li>
+                                        </ul>
+                                        <p class="calculation-example">Example: Stability 92% × 60% + Debt Mgmt 85% × 40% = 89.2%</p>
+                                    </div>
+
+                                    <div class="dimension-detail">
+                                        <h5>Innovation & Technology (20% weight)</h5>
+                                        <ul>
+                                            <li><strong>Digital Transformation (40%):</strong> Technology adoption score</li>
+                                            <li><strong>Technology Readiness (30%):</strong> TRL scale (1-9)</li>
+                                            <li><strong>Patent Strength (30%):</strong> IP portfolio assessment</li>
+                                        </ul>
+                                        <p class="calculation-example">Example: Digital 88% × 40% + TRL 89% × 30% + Patents 78% × 30% = 85.3%</p>
+                                    </div>
+
+                                    <div class="dimension-detail">
+                                        <h5>Business Maturity (15% weight)</h5>
+                                        <ul>
+                                            <li><strong>Company Age Factor (60%):</strong> Mature at 25+ years</li>
+                                            <li><strong>Company Size Factor (40%):</strong> Enterprise=100%, Large=85%, Medium=70%, Small=55%</li>
+                                        </ul>
+                                    </div>
+
+                                    <div class="dimension-detail">
+                                        <h5>Partnership & Communication (5% weight)</h5>
+                                        <ul>
+                                            <li><strong>Communication Quality (70%):</strong> Responsiveness and clarity</li>
+                                            <li><strong>Continuous Improvement (30%):</strong> Process enhancement initiatives</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="methodology-section">
+                            <h4>2. Final Vendor Scoring Algorithm</h4>
+                            <div class="methodology-detail">
+                                <p>The final vendor score combines multiple factors using user-defined weights:</p>
+                                <div class="formula-box">
+                                    <strong>Final Score = (Cost Score × Cost Weight) + (Time Score × Time Weight) + (Maturity Score × Maturity Weight) + (Capacity Score × Capacity Weight)</strong>
+                                </div>
+                                
+                                <div class="scoring-factors">
+                                    <div class="factor-detail">
+                                        <h5>Cost Score</h5>
+                                        <p>Calculated from unit price, landing costs, tariffs, and shipping expenses. Lower costs receive higher scores.</p>
+                                    </div>
+                                    
+                                    <div class="factor-detail">
+                                        <h5>Time Score</h5>
+                                        <p>Combines lead time and transit time. Faster delivery capabilities receive higher scores.</p>
+                                    </div>
+                                    
+                                    <div class="factor-detail">
+                                        <h5>Maturity Score</h5>
+                                        <p>Uses the 5-dimensional vendor maturity calculation described above.</p>
+                                    </div>
+                                    
+                                    <div class="factor-detail">
+                                        <h5>Capacity Score</h5>
+                                        <p>Based on manufacturing capacity and scalability to handle volume fluctuations.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="methodology-section">
+                            <h4>3. Regional Risk Adjustments</h4>
+                            <div class="methodology-detail">
+                                <p>Scores are adjusted based on regional factors:</p>
+                                <ul>
+                                    <li><strong>Country Risk:</strong> Political and economic stability</li>
+                                    <li><strong>Currency Stability:</strong> Exchange rate volatility</li>
+                                    <li><strong>Trade Relations:</strong> Current trade policies and tariffs</li>
+                                    <li><strong>Regulatory Compliance:</strong> Local compliance requirements</li>
+                                </ul>
+                                <p>These factors can adjust final scores by ±5-15% depending on the region.</p>
+                            </div>
+                        </div>
+
+                        <div class="methodology-section">
+                            <h4>4. Archetype-Based Performance Ranges</h4>
+                            <div class="methodology-detail">
+                                <div class="archetype-ranges">
+                                    <div class="archetype-range strategic">
+                                        <h5><i class="fas fa-star"></i> Strategic Suppliers</h5>
+                                        <p><strong>85-95% maturity range</strong> - High-value, critical partnerships with strong operational and innovation capabilities.</p>
+                                    </div>
+                                    
+                                    <div class="archetype-range leverage">
+                                        <h5><i class="fas fa-balance-scale"></i> Leverage Suppliers</h5>
+                                        <p><strong>70-85% maturity range</strong> - Competitive commodities with good operational performance and cost optimization potential.</p>
+                                    </div>
+                                    
+                                    <div class="archetype-range bottleneck">
+                                        <h5><i class="fas fa-exclamation-triangle"></i> Bottleneck Suppliers</h5>
+                                        <p><strong>60-80% maturity range</strong> - Specialized niche suppliers with unique capabilities but potential consistency challenges.</p>
+                                    </div>
+                                    
+                                    <div class="archetype-range routine">
+                                        <h5><i class="fas fa-cog"></i> Routine Suppliers</h5>
+                                        <p><strong>50-75% maturity range</strong> - Standard components with basic operational performance and limited innovation.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -291,6 +520,129 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calculation Examples Modal -->
+        <div id="calculation-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Vendor Maturity Calculation Examples</h2>
+                    <button id="close-calculation-modal" class="close-button">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="calculation-examples">
+                        <div class="example-vendor">
+                            <h4><i class="fas fa-star"></i> Strategic Supplier Example: "TechGlobal Semiconductors"</h4>
+                            <div class="example-breakdown">
+                                <div class="dimension-calculation">
+                                    <h5>Operational Excellence (35% weight):</h5>
+                                    <ul>
+                                        <li>OTIF Performance: 96% × 40% = <strong>38.4 points</strong></li>
+                                        <li>Lead Time Consistency: 94% × 30% = <strong>28.2 points</strong></li>
+                                        <li>Quality (1 - 25 PPM/1000): 97.5% × 30% = <strong>29.3 points</strong></li>
+                                        <li><strong>Operational Score: 95.9/100 → 95.9% × 35% = 33.6 points</strong></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="dimension-calculation">
+                                    <h5>Financial Maturity (25% weight):</h5>
+                                    <ul>
+                                        <li>Financial Stability: 92% × 60% = <strong>55.2 points</strong></li>
+                                        <li>Debt Management (D/E 0.4): 85% × 40% = <strong>34.0 points</strong></li>
+                                        <li><strong>Financial Score: 89.2/100 → 89.2% × 25% = 22.3 points</strong></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="dimension-calculation">
+                                    <h5>Innovation & Technology (20% weight):</h5>
+                                    <ul>
+                                        <li>Digital Transformation: 88% × 40% = <strong>35.2 points</strong></li>
+                                        <li>Technology Readiness (8/9): 89% × 30% = <strong>26.7 points</strong></li>
+                                        <li>Patent Strength: 78% × 30% = <strong>23.4 points</strong></li>
+                                        <li><strong>Innovation Score: 85.3/100 → 85.3% × 20% = 17.1 points</strong></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="dimension-calculation">
+                                    <h5>Business Maturity (15% weight):</h5>
+                                    <ul>
+                                        <li>Company Age (35 years): 100% × 60% = <strong>60.0 points</strong></li>
+                                        <li>Company Size (Enterprise): 100% × 40% = <strong>40.0 points</strong></li>
+                                        <li><strong>Business Score: 100/100 → 100% × 15% = 15.0 points</strong></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="dimension-calculation">
+                                    <h5>Partnership & Communication (5% weight):</h5>
+                                    <ul>
+                                        <li>Communication Quality: 91% × 70% = <strong>63.7 points</strong></li>
+                                        <li>Continuous Improvement: 84% × 30% = <strong>25.2 points</strong></li>
+                                        <li><strong>Partnership Score: 88.9/100 → 88.9% × 5% = 4.4 points</strong></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="final-calculation">
+                                    <h5>Final Vendor Maturity Score:</h5>
+                                    <p><strong>33.6 + 22.3 + 17.1 + 15.0 + 4.4 = 92.4%</strong></p>
+                                    <p class="archetype-note">✓ Strategic suppliers typically achieve 85-95% maturity scores</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="example-vendor">
+                            <h4><i class="fas fa-cog"></i> Routine Supplier Example: "Standard Components Ltd"</h4>
+                            <div class="example-breakdown">
+                                <div class="dimension-calculation">
+                                    <h5>Operational Excellence (35% weight):</h5>
+                                    <ul>
+                                        <li>OTIF Performance: 87% × 40% = <strong>34.8 points</strong></li>
+                                        <li>Lead Time Consistency: 78% × 30% = <strong>23.4 points</strong></li>
+                                        <li>Quality (1 - 280 PPM/1000): 72% × 30% = <strong>21.6 points</strong></li>
+                                        <li><strong>Operational Score: 79.8/100 → 79.8% × 35% = 27.9 points</strong></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="dimension-calculation">
+                                    <h5>Financial Maturity (25% weight):</h5>
+                                    <ul>
+                                        <li>Financial Stability: 74% × 60% = <strong>44.4 points</strong></li>
+                                        <li>Debt Management (D/E 1.8): 55% × 40% = <strong>22.0 points</strong></li>
+                                        <li><strong>Financial Score: 66.4/100 → 66.4% × 25% = 16.6 points</strong></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="dimension-calculation">
+                                    <h5>Innovation & Technology (20% weight):</h5>
+                                    <ul>
+                                        <li>Digital Transformation: 45% × 40% = <strong>18.0 points</strong></li>
+                                        <li>Technology Readiness (5/9): 56% × 30% = <strong>16.8 points</strong></li>
+                                        <li>Patent Strength: 22% × 30% = <strong>6.6 points</strong></li>
+                                        <li><strong>Innovation Score: 41.4/100 → 41.4% × 20% = 8.3 points</strong></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="final-calculation">
+                                    <h5>Final Vendor Maturity Score:</h5>
+                                    <p><strong>27.9 + 16.6 + 8.3 + 9.2 + 2.8 = 64.8%</strong></p>
+                                    <p class="archetype-note">✓ Routine suppliers typically achieve 50-75% maturity scores</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="calculation-notes">
+                            <h4>Important Notes:</h4>
+                            <ul>
+                                <li><strong>Regional Adjustments:</strong> Country risk, currency stability, and trade relations can adjust final scores ±5-15%</li>
+                                <li><strong>Data Freshness:</strong> Scores from stale data (>90 days) receive 5-10% penalty</li>
+                                <li><strong>Reliability vs Maturity:</strong> Reliability focuses on operational dependability, while Maturity is comprehensive business assessment</li>
+                                <li><strong>Archetype Correlation:</strong> Strategic (85-95%), Leverage (70-85%), Bottleneck (60-80%), Routine (50-75%)</li>
+                            </ul>
                         </div>
                     </div>
                 </div>

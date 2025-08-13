@@ -53,6 +53,10 @@ class Part:
     # Capacity
     monthly_capacity: int = 0  # Monthly Capacity (units)
     
+    # Compliance & Certifications
+    rohs_compliant: bool = False  # RoHS (Restriction of Hazardous Substances) compliance
+    reach_compliant: bool = False  # REACH (Registration, Evaluation, Authorization of Chemicals) compliance
+    
     # Metadata
     timestamp: Optional[datetime] = None
     last_verified: Optional[date] = None
